@@ -34,3 +34,6 @@ uint32_t getMinFreeHeap();
 void saveLogLevelToNVS(LogLevel level);
 LogLevel loadLogLevelFromNVS();
 void clearLogLevelNVS();
+
+// Client configuration functions
+void printClientConfiguration();

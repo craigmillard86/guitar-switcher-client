@@ -1,28 +1,38 @@
 # ESP32 Amp Channel Switcher
 
-A sophisticated ESP32-based amplifier channel switcher with wireless control, MIDI support, and comprehensive logging capabilities.
+A sophisticated ESP32-based amplifier channel switcher with wireless control, MIDI support, and comprehensive logging capabilities. Supports multiple amp configurations through build-time configuration.
 
 ## Features
 
-- **4-Channel Amp Switching**: Control up to 4 amplifier channels via relays
+- **Multi-Channel Amp Switching**: Support for 2-4 amplifier channels via relays
+- **Build-Time Configuration**: Multiple configurations for different amps and channel counts
 - **Wireless Control**: ESP-NOW communication for wireless remote control
 - **MIDI Support**: Program change messages for channel switching
 - **OTA Updates**: Over-the-air firmware updates
-- **Comprehensive Logging**: Multi-level logging with timestamps
+- **Comprehensive Logging**: Multi-level logging with timestamps and NVS persistence
 - **Serial Commands**: Extensive command interface for debugging and control
 - **Performance Monitoring**: Real-time performance and memory tracking
 - **Auto-Pairing**: Automatic device pairing system
+- **Button Support**: Physical buttons for direct channel switching
 
 ## Hardware Setup
 
 ### Pin Configuration
 - **Amp Switch Pins**: GPIO 4, 5, 6, 7 (relay control)
-- **Amp Button Pins**: GPIO 4, 5, 6, 7 (physical buttons)
+- **Amp Button Pins**: GPIO 8, 9, 10, 11 (physical buttons)
 - **Status LED**: GPIO 2
 - **Pairing LED**: GPIO 2 (PWM)
 - **Pairing Button**: GPIO 0
 - **MIDI RX**: GPIO 6
 - **MIDI TX**: GPIO 7
+
+### Supported Configurations
+
+| Configuration | Channels | Switch Pins | Button Pins | Device Name |
+|---------------|----------|-------------|-------------|-------------|
+| `client-2ch-amp` | 2 | 4, 5 | 8, 9 | 2CH_AMP |
+| `client-4ch-amp` | 4 | 4, 5, 6, 7 | 8, 9, 10, 11 | 4CH_AMP |
+| `client-amp-switcher` | 4 | 4, 5, 6, 7 | 8, 9, 10, 11 | AMP_SWITCHER_1 |
 
 ## Enhanced Logging System
 
@@ -45,6 +55,14 @@ Example:
 [00:17][WARN] Low memory warning: 8500B free
 ```
 
+### Log Persistence
+- Log levels are saved to NVS (Non-Volatile Storage)
+- Settings persist across reboots
+- Commands to manage log levels:
+  - `setlogN` - Set log level (N=0-4)
+  - `loglevel` - Show current log level
+  - `clearlog` - Reset to default log level
+
 ## Serial Commands
 
 ### System Commands
@@ -52,6 +70,7 @@ Example:
 |---------|-------------|
 | `help` | Show complete help menu |
 | `status` | Show complete system status |
+| `config` | Show client configuration |
 | `memory` | Show memory usage |
 | `network` | Show network status |
 | `amp` | Show amp channel status |
@@ -59,6 +78,7 @@ Example:
 | `uptime` | Show system uptime |
 | `version` | Show firmware version |
 | `midi` | Show MIDI configuration |
+| `buttons` | Toggle button checking on/off |
 
 ### Control Commands
 | Command | Description |
@@ -67,6 +87,8 @@ Example:
 | `ota` | Enter OTA update mode |
 | `pair` | Clear pairing and re-pair |
 | `setlogN` | Set log level (N=0-4) |
+| `clearlog` | Clear saved log level |
+| `clearall` | Clear all NVS data |
 
 ### Test Commands
 | Command | Description |
@@ -107,11 +129,17 @@ b3
 # Show system status
 status
 
+# Show client configuration
+config
+
 # Show debug information
 debug
 
 # Test status LED
 testled
+
+# Clear all NVS data
+clearall
 ```
 
 ## Performance Monitoring
@@ -148,33 +176,71 @@ The system includes comprehensive performance monitoring:
 
 ## Building and Flashing
 
+### Prerequisites
 1. Install PlatformIO
 2. Open the project in PlatformIO
 3. Configure your board in `platformio.ini`
-4. Build and upload:
-   ```bash
-   pio run --target upload
-   ```
+
+### Build Configurations
+
+The project supports multiple build configurations for different amp setups:
+
+```bash
+# For 2-channel amp
+platformio run -e client-2ch-amp
+
+# For 4-channel amp
+platformio run -e client-4ch-amp
+
+# For original amp switcher
+platformio run -e client-amp-switcher
+
+# Build and upload
+platformio run -e client-2ch-amp --target upload
+```
+
+### Configuration Options
+
+Each build environment defines:
+- **Channel Count**: Number of amp channels (2 or 4)
+- **Pin Assignments**: GPIO pins for switches and buttons
+- **Device Name**: Unique identifier for the device
 
 ## Configuration
 
-### Log Level
-Set the default log level in `globals.cpp`:
-```cpp
-LogLevel currentLogLevel = LOG_DEBUG;
+### Build-Time Configuration
+
+Configuration is handled through PlatformIO build flags in `platformio.ini`:
+
+```ini
+[env:client-2ch-amp]
+build_flags = 
+    -D CLIENT_TYPE=AMP_SWITCHER
+    -D MAX_AMPSWITCHS=2
+    -D AMP_SWITCH_PINS=\"4,5\"
+    -D AMP_BUTTON_PINS=\"8,9\"
+    -D DEVICE_NAME=\"2CH_AMP\"
 ```
 
-### Pin Configuration
-Modify pin assignments in `globals.cpp`:
-```cpp
-uint8_t ampSwitchPins[MAX_AMPSWITCHS] = {4, 5, 6, 7};
-uint8_t ampButtonPins[MAX_AMPSWITCHS] = {4, 5, 6, 7};
+### Adding New Configurations
+
+To add a new amp configuration:
+
+1. Add a new environment in `platformio.ini`:
+```ini
+[env:client-custom-amp]
+extends = env:esp32-c3-devkitc-02
+build_flags = 
+    -D CLIENT_TYPE=AMP_SWITCHER
+    -D MAX_AMPSWITCHS=3
+    -D AMP_SWITCH_PINS=\"4,5,6\"
+    -D AMP_BUTTON_PINS=\"8,9,10\"
+    -D DEVICE_NAME=\"CUSTOM_AMP\"
 ```
 
-### Channel Count
-Set the number of amp channels in `globals.h`:
-```cpp
-#define MAX_AMPSWITCHS 4
+2. Build with the new configuration:
+```bash
+platformio run -e client-custom-amp
 ```
 
 ## Troubleshooting
@@ -201,6 +267,11 @@ Set the number of amp channels in `globals.h`:
    - Verify MIDI channel settings
    - Test with `midi` command
 
+5. **Wrong Configuration**
+   - Use `config` command to verify current configuration
+   - Check build environment matches your hardware
+   - Rebuild with correct configuration
+
 ### Debug Commands
 
 Use these commands for troubleshooting:
@@ -208,6 +279,9 @@ Use these commands for troubleshooting:
 ```bash
 # Check system status
 status
+
+# Check client configuration
+config
 
 # Monitor memory usage
 debugmemory
@@ -227,6 +301,7 @@ debugespnow
 - **v1.0.0**: Initial release with basic functionality
 - **v1.1.0**: Enhanced logging and serial commands
 - **v1.2.0**: Performance monitoring and debug features
+- **v1.3.0**: Multi-configuration build system and NVS persistence
 
 ## License
 

@@ -13,6 +13,7 @@
 #include <MIDI.h>
 #include <commandHandler.h>
 #include "debug.h"
+#include "config.h"
 
 MessageType messageType;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
@@ -27,7 +28,10 @@ void setup() {
     // Load log level from NVS
     currentLogLevel = loadLogLevelFromNVS();
     
-    log(LOG_INFO, "=== ESP32 Amp Channel Switcher Starting ===");
+    // Initialize client configuration
+    initializeClientConfiguration();
+    
+    log(LOG_INFO, "=== ESP32 Client Starting ===");
     log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
     log(LOG_INFO, "Board ID: " + String(BOARD_ID));
     

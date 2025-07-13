@@ -6,6 +6,7 @@
 |---------|-------------|
 | `help` | Show all available commands |
 | `status` | Show complete system status |
+| `config` | Show client configuration |
 | `debug` | Show debug information |
 | `restart` | Reboot the device |
 
@@ -18,6 +19,8 @@
 | `setlog2` | Show warnings and errors |
 | `setlog3` | Show info, warnings, and errors |
 | `setlog4` | Show all messages (debug) |
+| `loglevel` | Show current log level |
+| `clearlog` | Clear saved log level (reset to default) |
 
 ## Amp Channel Control
 
@@ -25,13 +28,13 @@
 |---------|-------------|
 | `1` | Switch to channel 1 |
 | `2` | Switch to channel 2 |
-| `3` | Switch to channel 3 |
-| `4` | Switch to channel 4 |
+| `3` | Switch to channel 3 (4ch configs only) |
+| `4` | Switch to channel 4 (4ch configs only) |
 | `off` | Turn all channels off |
 | `b1` | Simulate button 1 press |
 | `b2` | Simulate button 2 press |
-| `b3` | Simulate button 3 press |
-| `b4` | Simulate button 4 press |
+| `b3` | Simulate button 3 press (4ch configs only) |
+| `b4` | Simulate button 4 press (4ch configs only) |
 
 ## System Information
 
@@ -44,6 +47,7 @@
 | `uptime` | Show system uptime |
 | `version` | Show firmware version |
 | `midi` | Show MIDI configuration |
+| `buttons` | Toggle button checking on/off |
 
 ## Debug Commands
 
@@ -68,6 +72,16 @@
 |---------|-------------|
 | `ota` | Enter OTA update mode |
 | `pair` | Clear pairing and re-pair |
+| `clearall` | Clear all NVS data (pairing + log level) |
+
+## Configuration Support
+
+The system supports different amp configurations:
+
+- **2-Channel Configs**: Commands `1`, `2`, `b1`, `b2` only
+- **4-Channel Configs**: Commands `1`, `2`, `3`, `4`, `b1`, `b2`, `b3`, `b4`
+
+Use `config` command to see your current configuration.
 
 ## Common Usage Examples
 
@@ -77,6 +91,9 @@ setlog3
 
 # Check system status
 status
+
+# Check current configuration
+config
 
 # Switch to channel 2
 2
@@ -90,6 +107,9 @@ testled
 # Check memory usage
 debugmemory
 
+# Clear all settings
+clearall
+
 # Restart device
 restart
 ```
@@ -101,6 +121,8 @@ restart
 3. **Memory issues**: Use `debugmemory`
 4. **WiFi problems**: Use `debugwifi`
 5. **Pairing issues**: Use `pair` then check `debugespnow`
+6. **Wrong configuration**: Use `config` to verify settings
+7. **Reset everything**: Use `clearall` to reset all settings
 
 ## Log Levels Explained
 
@@ -126,4 +148,16 @@ debugwifi
 
 # Monitor ESP-NOW status
 debugespnow
-``` 
+
+# Check current configuration
+config
+```
+
+## Build Configurations
+
+Available build environments:
+- `client-2ch-amp`: 2-channel amp switcher
+- `client-4ch-amp`: 4-channel amp switcher  
+- `client-amp-switcher`: Original 4-channel configuration
+
+Build with: `platformio run -e <environment>` 

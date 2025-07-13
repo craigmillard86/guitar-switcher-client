@@ -228,6 +228,8 @@ void handleSerialCommand(const String& cmd) {
         log(LOG_INFO, "Button checking " + String(enableButtonChecking ? "enabled" : "disabled"));
     } else if (cmd.equalsIgnoreCase("loglevel")) {
         log(LOG_INFO, "Current log level: " + getLogLevelString(currentLogLevel) + " (" + String((uint8_t)currentLogLevel) + ")");
+    } else if (cmd.equalsIgnoreCase("config")) {
+        printClientConfiguration();
     } else if (cmd.equalsIgnoreCase("clearlog")) {
         clearLogLevelNVS();
         currentLogLevel = LOG_INFO; // Reset to default
