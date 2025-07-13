@@ -18,4 +18,7 @@ uint8_t ampSwitchPins[MAX_AMPSWITCHS] = {4, 5, 6, 7}; // GPIO pin numbers
 uint8_t ampButtonPins[MAX_AMPSWITCHS] = {4, 5, 6, 7}; // GPIO pin numbers
 uint8_t currentAmpChannel = 0; // No channel active at startup
 
+// Button control flag - set to false when buttons aren't connected
+bool enableButtonChecking = false;
+
 

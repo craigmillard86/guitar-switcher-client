@@ -44,32 +44,32 @@ void clearPairingNVS() {
     nvs.clear();
     nvs.putInt("version", STORAGE_VERSION);
     nvs.end();
-    log(LOG_INFO, "[Client] Pairing info cleared from NVS.");
+    log(LOG_INFO, "Pairing info cleared from NVS");
 }
-
 
 void saveServerToNVS(const uint8_t* mac, uint8_t channel) {
     Preferences nvs;
-     log(LOG_INFO, "[NVS] Saving to NVS...");
+    log(LOG_DEBUG, "Saving server info to NVS...");
     if (nvs.begin(NVS_NAMESPACE, false)) {
         nvs.putBytes("server_mac", mac, 6);
         nvs.putUChar("channel", channel);
         nvs.putInt("version", STORAGE_VERSION);
-        Serial.printf("[NVS] Saved MAC: %02X:%02X:%02X:%02X:%02X:%02X Channel: %u\n",
-            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], channel);
+        log(LOG_INFO, "Server info saved to NVS:");
+        printMAC(mac, LOG_INFO);
+        log(LOG_INFO, "Channel: " + String(channel));
         nvs.end();
     } else {
-         log(LOG_INFO, "[NVS] Failed to open NVS for writing!");
+        log(LOG_ERROR, "Failed to open NVS for writing!");
     }
 }
 
 bool loadServerFromNVS(uint8_t* mac, uint8_t* channel) {
     Preferences nvs;
-     log(LOG_INFO, "[NVS] Loading from NVS...");
+    log(LOG_DEBUG, "Loading server info from NVS...");
     bool success = false;
     if (nvs.begin(NVS_NAMESPACE, true)) {
         if (nvs.getInt("version", 0) != STORAGE_VERSION) {
-            log(LOG_INFO, "[NVS] Incorrect Version! resetting NVS");
+            log(LOG_WARN, "Incorrect NVS version, resetting NVS");
             nvs.end();
             clearPairingNVS();
             nvs.begin(NVS_NAMESPACE, false);
@@ -80,15 +80,16 @@ bool loadServerFromNVS(uint8_t* mac, uint8_t* channel) {
         if (nvs.getBytesLength("server_mac") == 6) {
             nvs.getBytes("server_mac", mac, 6);
             *channel = nvs.getUChar("channel", 1);
-            Serial.printf("[NVS] Loaded MAC: %02X:%02X:%02X:%02X:%02X:%02X Channel: %u\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], *channel);
+            log(LOG_INFO, "Server info loaded from NVS:");
+            printMAC(mac, LOG_INFO);
+            log(LOG_INFO, "Channel: " + String(*channel));
             success = true;
         } else {
-             log(LOG_INFO, "[NVS] No server MAC found in NVS.");
+            log(LOG_DEBUG, "No server MAC found in NVS");
         }
         nvs.end();
     } else {
-         log(LOG_INFO, "[NVS] Failed to open NVS for reading!");
+        log(LOG_ERROR, "Failed to open NVS for reading!");
     }
     return success;
 }
@@ -109,7 +110,7 @@ void checkPairingButton() {
         if (reading == LOW && lastState == HIGH) {
             clearPairingNVS();
             pairingStatus = NOT_PAIRED;
-            log(LOG_ERROR, "[Client] Pairing button pressed, re-pairing...");
+            log(LOG_INFO, "Pairing button pressed, re-pairing requested");
         }
     }
 
@@ -117,8 +118,11 @@ void checkPairingButton() {
 }
 
 void addPeer(const uint8_t* mac_addr, uint8_t chan) {
+    log(LOG_DEBUG, "Adding peer to ESP-NOW...");
+    
     // Set the WiFi channel
     ESP_ERROR_CHECK(esp_wifi_set_channel(chan, WIFI_SECOND_CHAN_NONE));
+    log(LOG_DEBUG, "WiFi channel set to " + String(chan));
 
     // Remove the peer first to avoid duplicates
     esp_now_del_peer(mac_addr);
@@ -131,7 +135,8 @@ void addPeer(const uint8_t* mac_addr, uint8_t chan) {
 
     // Try to add the peer
     if (esp_now_add_peer(&peer) == ESP_OK) {
-        log(LOG_DEBUG,"Peer added successfully.");
+        log(LOG_INFO, "Peer added successfully");
+        printMAC(mac_addr, LOG_INFO);
 
         // Only save if this is a new or changed server
         bool shouldSave = false;
@@ -151,19 +156,20 @@ void addPeer(const uint8_t* mac_addr, uint8_t chan) {
 
         if (shouldSave) {
             saveServerToNVS(mac_addr, chan);
-            log(LOG_DEBUG,"Server info saved to NVS.");
+            log(LOG_DEBUG, "Server info saved to NVS");
         } else {
-            log(LOG_DEBUG,"Server info unchanged, not saving to NVS.");
+            log(LOG_DEBUG, "Server info unchanged, not saving to NVS");
         }
     } else {
-        log(LOG_ERROR,"Failed to add peer!");
+        log(LOG_ERROR, "Failed to add peer!");
+        printMAC(mac_addr, LOG_ERROR);
     }
 }
 
 PairingStatus autoPairing(){
   switch(pairingStatus) {
     case PAIR_REQUEST:
-      log(LOG_ERROR,"Pairing request on channel " +String(currentChannel) );
+      log(LOG_INFO, "Starting pairing on channel " + String(currentChannel));
 
       // set WiFi channel   
       ESP_ERROR_CHECK(esp_wifi_set_channel(currentChannel,  WIFI_SECOND_CHAN_NONE));
@@ -180,15 +186,16 @@ PairingStatus autoPairing(){
       pairingData.macAddr[4] = clientMacAddress[4];
       pairingData.macAddr[5] = clientMacAddress[5];
       strncpy(pairingData.name, deviceName, MAX_PEER_NAME_LEN);
+      
       // add peer and send request
       addPeer(serverAddress, currentChannel);
       esp_now_send(serverAddress, (uint8_t *) &pairingData, sizeof(pairingData));
+      log(LOG_DEBUG, "Pairing request sent");
       previousMillis = millis();
       pairingStatus = PAIR_REQUESTED;
       break;
 
     case PAIR_REQUESTED:
-
       // time out to allow receiving response from server
       currentMillis = millis();
       if(currentMillis - previousMillis > 1000) {
@@ -198,6 +205,7 @@ PairingStatus autoPairing(){
         if (currentChannel > MAX_CHANNEL){
           currentChannel = 1;
         }   
+        log(LOG_DEBUG, "Pairing timeout, trying channel " + String(currentChannel));
         pairingStatus = PAIR_REQUEST;
       }
     break;

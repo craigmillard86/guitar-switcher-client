@@ -2,6 +2,7 @@
 #include "dataStructs.h"
 #include <Arduino.h>
 #include <esp_now.h>
+#include <WiFi.h>
 
 #define FIRMWARE_VERSION "1.0.0"
 #define STORAGE_VERSION 1
@@ -57,3 +58,4 @@ extern bool paired;
 extern char deviceName[MAX_PEER_NAME_LEN];
 extern bool newDataReceived;
 extern bool otaModeRequested;
+extern bool enableButtonChecking;
