@@ -7,7 +7,7 @@
 // Global performance metrics
 PerformanceMetrics perfMetrics = {0};
 
-// Memory tracking test
+// Memory tracking
 uint32_t initialFreeHeap = 0;
 uint32_t lastFreeHeap = 0;
 unsigned long lastMemoryCheck = 0;
