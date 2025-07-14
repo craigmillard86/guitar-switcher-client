@@ -1,5 +1,7 @@
 # Compilation Status and Fixes
 
+> **Note:** All configuration (pin assignments, feature flags, channel counts, device names) is now centralized in `config.h` and controlled by build flags in `platformio.ini`. The `CLIENT_TYPE` macro is required for all builds and enables/controls feature selection and device role.
+
 ## Recent Issues Found and Fixed
 
 ### 1. **Macro String Escaping**

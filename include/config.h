@@ -1,5 +1,5 @@
+#include <Arduino.h>
 #pragma once
-#include "globals.h"
 
 // Client Type Definitions
 enum ClientType {
@@ -29,17 +29,61 @@ enum ClientType {
     #define AMP_BUTTON_PINS "8,9,10,11"
     #endif
 
-#elif CLIENT_TYPE == CUSTOM
+#else // CUSTOM
     #define CLIENT_TYPE_ENUM CLIENT_CUSTOM
     #define HAS_AMP_SWITCHING false
-
-#else
-    #error "Unknown CLIENT_TYPE specified"
 #endif
 
 // Device name configuration
 #ifndef DEVICE_NAME
 #define DEVICE_NAME "ESP32_CLIENT"
+#endif
+
+// Pin assignments and hardware config
+#ifndef STATUS_LED_PIN
+#define STATUS_LED_PIN 2
+#endif
+#ifndef PAIRING_LED_PIN
+#define PAIRING_LED_PIN 2
+#endif
+#ifndef PAIRING_BUTTON_PIN
+#define PAIRING_BUTTON_PIN 0
+#endif
+#ifndef OTA_BUTTON_PIN
+#define OTA_BUTTON_PIN 0
+#endif
+#ifndef OTA_HOLD_TIME
+#define OTA_HOLD_TIME 2000
+#endif
+#ifndef MIDI_RX_PIN
+#define MIDI_RX_PIN 6
+#endif
+#ifndef MIDI_TX_PIN
+#define MIDI_TX_PIN 7
+#endif
+#ifndef LEDC_CHANNEL_0
+#define LEDC_CHANNEL_0 0
+#endif
+#ifndef LEDC_TIMER_13_BIT
+#define LEDC_TIMER_13_BIT 13
+#endif
+#ifndef LEDC_BASE_FREQ
+#define LEDC_BASE_FREQ 1000
+#endif
+#ifndef PAIRING_LED_BLINK
+#define PAIRING_LED_BLINK 100
+#endif
+#ifndef PAIRING_RETRY_DELAY
+#define PAIRING_RETRY_DELAY 300
+#endif
+#ifndef MAX_CHANNEL
+#define MAX_CHANNEL 13
+#endif
+#ifndef MAX_PEER_NAME_LEN
+#define MAX_PEER_NAME_LEN 32
+#endif
+#ifndef NVS_NAMESPACE
+#define NVS_NAMESPACE "pairing"
 #endif
 
 // Function declarations

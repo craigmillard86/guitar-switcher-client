@@ -1,5 +1,7 @@
 # ESP32 Amp Switcher - Quick Command Reference
 
+> **Note:** The available commands, channel numbers, and button numbers depend on the build-time configuration (e.g., CLIENT_TYPE, MAX_AMPSWITCHS, pin assignments) set in platformio.ini and config.h. Use the `config` command to see your current build configuration.
+
 ## Essential Commands
 
 | Command | Description |

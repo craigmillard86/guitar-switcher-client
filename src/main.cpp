@@ -5,15 +5,16 @@
 #include <esp_pm.h>
 #include <esp_wifi_types.h>
 #include <dataStructs.h>
+#include "config.h"
+#include "pairing.h"
+#include "espnow-pairing.h"
 #include <globals.h>
 #include <utils.h>
-#include <espnow-pairing.h>
 #include <otaManager.h>
 #include <espnow.h>
 #include <MIDI.h>
 #include <commandHandler.h>
 #include "debug.h"
-#include "config.h"
 
 MessageType messageType;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);

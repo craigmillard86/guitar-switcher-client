@@ -5,7 +5,7 @@ A sophisticated ESP32-based amplifier channel switcher with wireless control, MI
 ## Features
 
 - **Multi-Channel Amp Switching**: Support for 2-4 amplifier channels via relays
-- **Build-Time Configuration**: Multiple configurations for different amps and channel counts
+- **Build-Time Configuration**: Multiple configurations for different amps and channel counts, controlled by the `CLIENT_TYPE` and other build flags
 - **Wireless Control**: ESP-NOW communication for wireless remote control
 - **MIDI Support**: Program change messages for channel switching
 - **OTA Updates**: Over-the-air firmware updates
@@ -14,6 +14,36 @@ A sophisticated ESP32-based amplifier channel switcher with wireless control, MI
 - **Performance Monitoring**: Real-time performance and memory tracking
 - **Auto-Pairing**: Automatic device pairing system
 - **Button Support**: Physical buttons for direct channel switching
+
+## Build-Time Configuration System
+
+All hardware pin assignments, feature flags, and channel counts are now set in `config.h` or via build flags in `platformio.ini`. The `CLIENT_TYPE` macro determines the device's role and features at build time.
+
+### How CLIENT_TYPE Works
+- Each build environment in `platformio.ini` sets a `CLIENT_TYPE` (e.g., `AMP_SWITCHER`)
+- Other flags (e.g., `MAX_AMPSWITCHS`, `AMP_SWITCH_PINS`, `DEVICE_NAME`) are set per environment
+- The firmware adapts its features, pins, and commands based on these flags
+
+#### Example: Adding a New Client Type
+To add a new device type or configuration:
+1. Add a new environment in `platformio.ini`:
+```ini
+[env:client-custom-amp]
+extends = env:esp32-c3-devkitc-02
+build_flags = 
+    -D CLIENT_TYPE=AMP_SWITCHER
+    -D MAX_AMPSWITCHS=3
+    -D AMP_SWITCH_PINS="4,5,6"
+    -D AMP_BUTTON_PINS="8,9,10"
+    -D DEVICE_NAME="CUSTOM_AMP"
+```
+2. Build with the new configuration:
+```bash
+platformio run -e client-custom-amp
+```
+
+### Viewing the Current Configuration
+- Use the `config` serial command to display the current build configuration, including client type, pins, and device name.
 
 ## Hardware Setup
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "dataStructs.h"
+#include "config.h"
 #include "globals.h"
 #include <Arduino.h>
 

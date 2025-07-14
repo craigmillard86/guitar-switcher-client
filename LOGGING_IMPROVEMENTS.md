@@ -1,5 +1,7 @@
 # Logging Improvements Summary
 
+> **Note:** Log level persistence and configuration display are now tied to the build-time configuration system. The logging system adapts to the selected CLIENT_TYPE and configuration, and the config command shows the current build settings.
+
 ## Overview
 This document summarizes all the logging improvements made to the ESP32 Amp Channel Switcher project to ensure consistent, professional logging throughout the codebase with NVS persistence and configuration system integration.
 

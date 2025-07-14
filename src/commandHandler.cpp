@@ -1,4 +1,7 @@
+#include <Arduino.h>
+#include "config.h"
 #include "commandHandler.h"
+#include "pairing.h"
 #include "globals.h"
 #include "espnow-pairing.h"
 #include "utils.h"

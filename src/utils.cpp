@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "utils.h"
 #include <espnow-pairing.h>
 #include <commandHandler.h>
