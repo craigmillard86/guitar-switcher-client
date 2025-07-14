@@ -64,7 +64,11 @@ void initializeClientConfiguration() {
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         ampSwitchPins[i] = switchPins[i];
         ampButtonPins[i] = buttonPins[i];
+        pinMode(ampButtonPins[i], INPUT_PULLUP);
+        pinMode(ampSwitchPins[i], OUTPUT);
+        digitalWrite(ampSwitchPins[i], LOW); // Ensure relays are off at boot
     }
+    digitalWrite(ampSwitchPins[0], HIGH);
     log(LOG_DEBUG, "Amp switching pins initialized");
     #endif
     

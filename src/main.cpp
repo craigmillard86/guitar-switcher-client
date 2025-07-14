@@ -35,15 +35,6 @@ void setup() {
     log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
     log(LOG_INFO, "Board ID: " + String(BOARD_ID));
     
-    // Initialize amp switch pins
-    log(LOG_DEBUG, "Initializing amp switch pins...");
-    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-        pinMode(ampSwitchPins[i], OUTPUT);
-        digitalWrite(ampSwitchPins[i], LOW); // Start all OFF
-    }
-    digitalWrite(ampSwitchPins[0], HIGH); // Start with channel 1
-    log(LOG_DEBUG, "Amp switch pins initialized");
-    
     // Initialize status LED
     pinMode(STATUS_LED_PIN, OUTPUT);
     log(LOG_DEBUG, "Status LED initialized on pin " + String(STATUS_LED_PIN));
