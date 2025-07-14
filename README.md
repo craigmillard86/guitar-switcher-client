@@ -52,9 +52,15 @@ platformio run -e client-custom-amp
 - **Amp Button Pins**: GPIO 8, 9, 10, 11 (physical buttons)
 - **Status LED**: GPIO 2
 - **Pairing LED**: GPIO 2 (PWM)
-- **Pairing Button**: GPIO 0
 - **MIDI RX**: GPIO 6
 - **MIDI TX**: GPIO 7
+
+**Button 1 (amp channel 1 button) now has multiple functions:**
+- **Short press (<5s):** Switch to channel 1
+- **Long press (>5s):** Enter pairing mode (after setup window)
+- **Long press during setup (hold for 5s within first 10s after boot):** Enter OTA mode
+
+> **Note:** There is no longer a dedicated OTA button. OTA mode can only be triggered by serial command (`ota`) or by holding Button 1 for 5 seconds during the setup window after boot.
 
 ### Supported Configurations
 
@@ -114,11 +120,18 @@ Example:
 | Command | Description |
 |---------|-------------|
 | `restart` | Reboot the device |
-| `ota` | Enter OTA update mode |
+| `ota` | Enter OTA update mode (only available during setup window, or via serial) |
 | `pair` | Clear pairing and re-pair |
 | `setlogN` | Set log level (N=0-4) |
 | `clearlog` | Clear saved log level |
 | `clearall` | Clear all NVS data |
+
+### Button 1 Functions
+| Action | When | Result |
+|--------|------|--------|
+| Short press (<5s) | Any time | Switch to channel 1 |
+| Long press (>5s) | After setup window | Enter pairing mode |
+| Long press (>5s) | During setup window (first 10s after boot) | Enter OTA mode |
 
 ### Test Commands
 | Command | Description |

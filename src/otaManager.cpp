@@ -6,20 +6,6 @@
 
 WebServer server(80);
 
-// === Check if OTA mode should start ===
-bool checkOtaTrigger() {
-  pinMode(OTA_BUTTON_PIN, INPUT_PULLUP);
-  unsigned long pressStart = millis();
-  while (digitalRead(OTA_BUTTON_PIN) == LOW) {
-    if (millis() - pressStart >= OTA_HOLD_TIME) {
-      log(LOG_INFO, "OTA button held for required time");
-      return true;
-    }
-    delay(10);
-  }
-  return false;
-}
-
 // === Start OTA and WiFiManager ===
 void startOTA() {
   log(LOG_INFO, "=== Starting OTA Setup Mode ===");

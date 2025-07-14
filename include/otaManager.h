@@ -2,4 +2,3 @@
 #include <Arduino.h>
 
 void startOTA();
-bool checkOtaTrigger();

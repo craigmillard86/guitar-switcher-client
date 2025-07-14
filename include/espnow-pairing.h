@@ -13,7 +13,6 @@ void startPairing();
 void saveServerToNVS(const uint8_t* mac, uint8_t channel);
 bool loadServerFromNVS(uint8_t* mac, uint8_t* channel);
 void clearPairingNVS();
-void checkPairingButton();
 void updatePairingLED();
 PairingStatus autoPairing();
 void addPeer(const uint8_t * mac_addr, uint8_t chan);

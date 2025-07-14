@@ -39,11 +39,7 @@ void setup() {
     // Initialize status LED
     pinMode(STATUS_LED_PIN, OUTPUT);
     log(LOG_DEBUG, "Status LED initialized on pin " + String(STATUS_LED_PIN));
-    
-    // Initialize pairing button
-    pinMode(PAIRING_BUTTON_PIN, INPUT_PULLUP);
-    log(LOG_DEBUG, "Pairing button initialized on pin " + String(PAIRING_BUTTON_PIN));
-    
+     
     // Setup pairing LED
     ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
     ledcAttachPin(PAIRING_LED_PIN, LEDC_CHANNEL_0);
@@ -67,15 +63,37 @@ void setup() {
     
     // OTA trigger check
     unsigned long serialWaitStart = millis();
-    log(LOG_INFO, "Enter 'ota' within 10 seconds to enter OTA mode...");
+    log(LOG_INFO, "Enter 'ota' within 10 seconds or hold Button 1 for 5s to enter OTA mode...");
+
+    bool button1OtaTriggered = false;
+    const unsigned long otaButtonHoldTime = 5000; // 5 seconds
+    bool button1WasPressed = false;
+    unsigned long button1PressStart = 0;
 
     while (millis() - serialWaitStart < 10000) {
         checkSerialCommands();
         delay(10);
         if (serialOtaTrigger) break;
+
+        // Check for long press on button 1 (ampButtonPins[0])
+        int button1State = digitalRead(ampButtonPins[0]);
+        if (button1State == LOW && !button1WasPressed) {
+            button1PressStart = millis();
+            button1WasPressed = true;
+        } else if (button1State == LOW && button1WasPressed) {
+            if (!button1OtaTriggered && (millis() - button1PressStart > otaButtonHoldTime)) {
+                serialOtaTrigger = true;
+                button1OtaTriggered = true;
+                log(LOG_INFO, "OTA mode triggered by holding Button 1");
+                break;
+            }
+        } else if (button1State == HIGH && button1WasPressed) {
+            button1WasPressed = false;
+            button1PressStart = 0;
+        }
     }
 
-    if (checkOtaTrigger() || serialOtaTrigger) {
+    if (serialOtaTrigger) {
         log(LOG_INFO, "OTA mode triggered, starting OTA...");
         startOTA();
         return;
@@ -122,7 +140,6 @@ void loop() {
     unsigned long loopStart = millis();
     
     // Check for button presses and serial commands
-    checkPairingButton();
     checkAmpChannelButtons();
     updatePairingLED();
     checkSerialCommands();

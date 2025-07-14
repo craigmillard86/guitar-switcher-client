@@ -97,29 +97,6 @@ bool loadServerFromNVS(uint8_t* mac, uint8_t* channel) {
     return success;
 }
 
-void checkPairingButton() {
-    static bool lastState = HIGH;
-    static unsigned long lastDebounceTime = 0;
-    const unsigned long debounceDelay = 50; // milliseconds
-
-    bool reading = digitalRead(PAIRING_BUTTON_PIN);
-
-    if (reading != lastState) {
-        lastDebounceTime = millis();
-    }
-
-    if ((millis() - lastDebounceTime) > debounceDelay) {
-        // Button is pressed (active LOW), and debounced:
-        if (reading == LOW && lastState == HIGH) {
-            clearPairingNVS();
-            pairingStatus = NOT_PAIRED;
-            log(LOG_INFO, "Pairing button pressed, re-pairing requested");
-        }
-    }
-
-    lastState = reading;
-}
-
 void addPeer(const uint8_t* mac_addr, uint8_t chan) {
     log(LOG_DEBUG, "Adding peer to ESP-NOW...");
     

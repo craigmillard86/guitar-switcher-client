@@ -18,15 +18,15 @@ enum ClientType {
     #define HAS_AMP_SWITCHING true
     
     #ifndef MAX_AMPSWITCHS
-    #define MAX_AMPSWITCHS 4
+    #define MAX_AMPSWITCHS 2
     #endif
     
     #ifndef AMP_SWITCH_PINS
-    #define AMP_SWITCH_PINS "4,5,6,7"
+    #define AMP_SWITCH_PINS "4,5"
     #endif
     
     #ifndef AMP_BUTTON_PINS
-    #define AMP_BUTTON_PINS "8,9,10,11"
+    #define AMP_BUTTON_PINS "9,10"
     #endif
 
 #else // CUSTOM
@@ -41,19 +41,10 @@ enum ClientType {
 
 // Pin assignments and hardware config
 #ifndef STATUS_LED_PIN
-#define STATUS_LED_PIN 2
+#define STATUS_LED_PIN 1
 #endif
 #ifndef PAIRING_LED_PIN
-#define PAIRING_LED_PIN 2
-#endif
-#ifndef PAIRING_BUTTON_PIN
-#define PAIRING_BUTTON_PIN 0
-#endif
-#ifndef OTA_BUTTON_PIN
-#define OTA_BUTTON_PIN 0
-#endif
-#ifndef OTA_HOLD_TIME
-#define OTA_HOLD_TIME 2000
+#define PAIRING_LED_PIN 1
 #endif
 #ifndef MIDI_RX_PIN
 #define MIDI_RX_PIN 6

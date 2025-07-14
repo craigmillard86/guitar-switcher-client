@@ -72,7 +72,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `ota` | Enter OTA update mode |
+| `ota` | Enter OTA update mode (serial command, or hold Button 1 for 5s during setup) |
 | `pair` | Clear pairing and re-pair |
 | `clearall` | Clear all NVS data (pairing + log level) |
 
@@ -154,6 +154,14 @@ debugespnow
 # Check current configuration
 config
 ```
+
+## Button 1 Multi-Function Summary
+
+| Action | When | Result |
+|--------|------|--------|
+| Short press (<5s) | Any time | Switch to channel 1 |
+| Long press (>5s) | After setup window | Enter pairing mode |
+| Long press (>5s) | During setup window (first 10s after boot) | Enter OTA mode |
 
 ## Build Configurations
 
