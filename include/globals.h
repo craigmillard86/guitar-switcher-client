@@ -55,3 +55,19 @@ extern char deviceName[MAX_PEER_NAME_LEN];
 extern bool newDataReceived;
 extern bool otaModeRequested;
 extern bool enableButtonChecking;
+
+enum StatusLedPattern {
+  LED_OFF,
+  LED_SINGLE_FLASH,
+  LED_DOUBLE_FLASH,
+  LED_TRIPLE_FLASH,
+  LED_FAST_BLINK,
+  LED_SOLID_ON,
+  LED_FADE,
+  LED_PAIRING, // Alias for fade
+  LED_OTA_BLINK // Alias for fast blink
+};
+
+extern volatile StatusLedPattern currentLedPattern;
+extern volatile unsigned long ledPatternStart;
+extern volatile int ledPatternStep;

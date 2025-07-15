@@ -155,7 +155,7 @@ void loop() {
     
     // Check for button presses and serial commands
     checkAmpChannelButtons();
-    updatePairingLED();
+    updateStatusLED(); // Replaces updatePairingLED()
     checkSerialCommands();
     
     // Process MIDI messages

@@ -5,7 +5,8 @@ A sophisticated ESP32-based amplifier channel switcher with wireless control, MI
 ## Features
 
 - **Multi-Channel Amp Switching**: Support for 2-4 amplifier channels via relays
-- **Build-Time Configuration**: Multiple configurations for different amps and channel counts, controlled by the `CLIENT_TYPE` and other build flags
+- **Build-Time Configuration**: All pin assignments, device name, and channel count are set via `platformio.ini` and parsed at runtime
+- **Runtime Pin Reporting**: Use the `pins` serial command to display all current pin assignments (amp switch, button, LED, MIDI)
 - **Wireless Control**: ESP-NOW communication for wireless remote control
 - **MIDI Support**: Program change messages for channel switching
 - **OTA Updates**: Over-the-air firmware updates
@@ -14,10 +15,11 @@ A sophisticated ESP32-based amplifier channel switcher with wireless control, MI
 - **Performance Monitoring**: Real-time performance and memory tracking
 - **Auto-Pairing**: Automatic device pairing system
 - **Button Support**: Physical buttons for direct channel switching
+- **LED Feedback Patterns**: Status LED provides feedback for events (data, command, MIDI, OTA, error, pairing)
 
 ## Build-Time Configuration System
 
-All hardware pin assignments, feature flags, and channel counts are now set in `config.h` or via build flags in `platformio.ini`. The `CLIENT_TYPE` macro determines the device's role and features at build time.
+All hardware pin assignments, feature flags, and channel counts are now set in `config.h` or via build flags in `platformio.ini`. The `CLIENT_TYPE` macro determines the device's role and features at build time. At runtime, the firmware parses these macros and reports the actual configuration via the `config` and `pins` serial commands.
 
 ### How CLIENT_TYPE Works
 - Each build environment in `platformio.ini` sets a `CLIENT_TYPE` (e.g., `AMP_SWITCHER`)
@@ -44,15 +46,16 @@ platformio run -e client-custom-amp
 
 ### Viewing the Current Configuration
 - Use the `config` serial command to display the current build configuration, including client type, pins, and device name.
+- Use the `pins` serial command to display all runtime pin assignments (amp switch, button, LED, MIDI).
 
 ## Hardware Setup
 
 ### Pin Configuration
-- **Amp Switch Pins**: GPIO 2, 3, 4, 5 (relay control)
-- **Amp Button Pins**: GPIO 8, 9, 10, 20 (physical buttons)
-- **Status/Pairing LED**: GPIO 1 (PWM, reserved for LED only)
-- **MIDI RX**: GPIO 6
-- **MIDI TX**: GPIO 7
+- **Amp Switch Pins**: Set via `AMP_SWITCH_PINS` in `platformio.ini` (e.g., GPIO 2, 3, 4, 5)
+- **Amp Button Pins**: Set via `AMP_BUTTON_PINS` in `platformio.ini` (e.g., GPIO 8, 9, 10, 20)
+- **Status/Pairing LED**: Set via `PAIRING_LED_PIN` (default: GPIO 1, reserved for LED only)
+- **MIDI RX**: Set via `MIDI_RX_PIN` (default: GPIO 6)
+- **MIDI TX**: Set via `MIDI_TX_PIN` (default: GPIO 7)
 
 > **Note:** GPIO 1 is reserved for the status/pairing LED. Do **not** use GPIO 1 for relays or switches to avoid conflicts.
 
@@ -73,35 +76,6 @@ platformio run -e client-custom-amp
 
 > **Note:** GPIO 20 is used for the 4th amp button on the ESP32-C3 Super Mini. GPIO 11 is not available on this board.
 
-## Enhanced Logging System
-
-### Log Levels
-- **LOG_NONE (0)**: No logging
-- **LOG_ERROR (1)**: Error messages only
-- **LOG_WARN (2)**: Warnings and errors
-- **LOG_INFO (3)**: Information, warnings, and errors
-- **LOG_DEBUG (4)**: All messages including debug
-
-### Log Format
-```
-[MM:SS][LEVEL] Message
-```
-
-Example:
-```
-[00:15][INFO] Amp channel set to 2
-[00:16][DEBUG] Button 3 pressed, switching to channel 3
-[00:17][WARN] Low memory warning: 8500B free
-```
-
-### Log Persistence
-- Log levels are saved to NVS (Non-Volatile Storage)
-- Settings persist across reboots
-- Commands to manage log levels:
-  - `setlogN` - Set log level (N=0-4)
-  - `loglevel` - Show current log level
-  - `clearlog` - Reset to default log level
-
 ## Serial Commands
 
 ### System Commands
@@ -109,7 +83,8 @@ Example:
 |---------|-------------|
 | `help` | Show complete help menu |
 | `status` | Show complete system status |
-| `config` | Show client configuration |
+| `config` | Show client configuration (all runtime config, device name, pins) |
+| `pins` | Show all runtime pin assignments (amp switch, button, LED, MIDI) |
 | `memory` | Show memory usage |
 | `network` | Show network status |
 | `amp` | Show amp channel status |
@@ -160,65 +135,41 @@ Example:
 | `b1-b4` | Simulate button press 1-4 |
 | `off` | Turn all channels off |
 
-## Examples
-
-```bash
-# Set log level to show info and above
-setlog3
-
-# Switch to channel 2
-2
-
-# Simulate button 3 press
-b3
-
-# Show system status
-status
-
-# Show client configuration
-config
-
-# Show debug information
-debug
-
-# Test status LED
-testled
-
-# Clear all NVS data
-clearall
+### Example Output for `pins` Command
+```
+[INFO] === PIN ASSIGNMENTS ===
+[INFO] Amp Switch Pins: 2,3,4,5
+[INFO] Amp Button Pins: 8,9,10,20
+[INFO] Status/Pairing LED Pin: 1
+[INFO] MIDI RX Pin: 6
+[INFO] MIDI TX Pin: 7
+[INFO] ======================
 ```
 
-## Performance Monitoring
+### Example Output for `config` Command
+```
+[INFO] === CLIENT CONFIGURATION ===
+[INFO] Client Type: AMP_SWITCHER
+[INFO] Device Name: AMP_SWITCHER_1
+[INFO] Amp Switching: Enabled
+[INFO] Max Amp Switches: 4
+[INFO] Amp Switch Pins: 2,3,4,5
+[INFO] Amp Button Pins: 8,9,10,20
+[INFO] ===========================
+```
 
-The system includes comprehensive performance monitoring:
+## LED Feedback Patterns
+- **Single Flash:** ESP-NOW data received
+- **Double Flash:** Serial command or ESP-NOW command received
+- **Triple Flash:** MIDI message received
+- **Fast Blink:** OTA update in progress
+- **Solid On:** Error state
+- **Fade/Breath:** Pairing mode
 
-- **Loop Performance**: Tracks loop execution time
-- **Memory Usage**: Monitors heap memory usage
-- **Memory Leak Detection**: Alerts on potential memory leaks
-- **WiFi Statistics**: RSSI, channel, power mode
-- **ESP-NOW Statistics**: Peer count, pairing status
-- **Task Statistics**: Stack usage, CPU usage
+## Troubleshooting
 
-## Memory Management
-
-- **Initial Memory**: Tracks initial free heap
-- **Memory Changes**: Logs memory increases/decreases
-- **Low Memory Warnings**: Alerts when free memory < 10KB
-- **Memory Leak Detection**: Compares current vs initial memory
-
-## MIDI Integration
-
-- **Program Changes**: MIDI PC messages switch amp channels
-- **Channel Mapping**: PC#0 = Channel 1, PC#1 = Channel 2, etc.
-- **MIDI Thru**: Passes incoming MIDI to output
-- **OMNI Mode**: Listens to all MIDI channels
-
-## ESP-NOW Communication
-
-- **Auto-Pairing**: Automatic device discovery and pairing
-- **Channel Selection**: Automatic WiFi channel selection
-- **Peer Management**: Dynamic peer addition/removal
-- **Message Types**: DATA, PAIRING, COMMAND
+- If the `pins` or `config` command does not match your expected configuration, check your `platformio.ini` build flags and rebuild the firmware.
+- All configuration is dynamic and reported at runtime.
 
 ## Building and Flashing
 
@@ -263,9 +214,9 @@ Configuration is handled through PlatformIO build flags in `platformio.ini`:
 build_flags = 
     -D CLIENT_TYPE=AMP_SWITCHER
     -D MAX_AMPSWITCHS=2
-    -D AMP_SWITCH_PINS=\"4,5\"
-    -D AMP_BUTTON_PINS=\"8,9\"
-    -D DEVICE_NAME=\"2CH_AMP\"
+    -D AMP_SWITCH_PINS="4,5"
+    -D AMP_BUTTON_PINS="8,9"
+    -D DEVICE_NAME="2CH_AMP"
 ```
 
 ### Adding New Configurations
@@ -279,9 +230,9 @@ extends = env:esp32-c3-devkitc-02
 build_flags = 
     -D CLIENT_TYPE=AMP_SWITCHER
     -D MAX_AMPSWITCHS=3
-    -D AMP_SWITCH_PINS=\"4,5,6\"
-    -D AMP_BUTTON_PINS=\"8,9,10\"
-    -D DEVICE_NAME=\"CUSTOM_AMP\"
+    -D AMP_SWITCH_PINS="4,5,6"
+    -D AMP_BUTTON_PINS="8,9,10"
+    -D DEVICE_NAME="CUSTOM_AMP"
 ```
 
 2. Build with the new configuration:
@@ -291,80 +242,5 @@ platformio run -e client-custom-amp
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **No Serial Output**
-   - Check baud rate (115200)
-   - Verify USB connection
-   - Try different USB cable
-
-2. **Pairing Issues**
-   - Use `pair` command to reset pairing
-   - Check WiFi channel compatibility
-   - Verify both devices are in pairing mode
-
-3. **Memory Issues**
-   - Use `debugmemory` to check memory usage
-   - Monitor for memory leaks
-   - Consider reducing log level
-
-4. **MIDI Not Working**
-   - Check MIDI cable connections
-   - Verify MIDI channel settings
-   - Test with `midi` command
-
-5. **Wrong Configuration**
-   - Use `config` command to verify current configuration
-   - Check build environment matches your hardware
-   - Rebuild with correct configuration
-
-### Debug Commands
-
-Use these commands for troubleshooting:
-
-```bash
-# Check system status
-status
-
-# Check client configuration
-config
-
-# Monitor memory usage
-debugmemory
-
-# Check WiFi connection
-debugwifi
-
-# Monitor performance
-debugperf
-
-# Check ESP-NOW status
-debugespnow
-```
-
-## Version History
-
-- **v1.0.0**: Initial release with basic functionality
-- **v1.1.0**: Enhanced logging and serial commands
-- **v1.2.0**: Performance monitoring and debug features
-- **v1.3.0**: Multi-configuration build system and NVS persistence
-
-## License
-
-This project is open source. Feel free to modify and distribute.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## Support
-
-For issues and questions:
-1. Check the troubleshooting section
-2. Review the debug commands
-3. Check the serial output for error messages
-4. Use the `help` command for available options 
+- If the `pins` or `config` command does not match your expected configuration, check your `platformio.ini` build flags and rebuild the firmware.
+- All configuration is dynamic and reported at runtime. 

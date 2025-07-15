@@ -1,6 +1,6 @@
 # ESP32 Amp Switcher - Quick Command Reference
 
-> **Note:** The available commands, channel numbers, and button numbers depend on the build-time configuration (e.g., CLIENT_TYPE, MAX_AMPSWITCHS, pin assignments) set in platformio.ini and config.h. Use the `config` command to see your current build configuration.
+> **Note:** The available commands, channel numbers, and button numbers depend on the build-time configuration (e.g., CLIENT_TYPE, MAX_AMPSWITCHS, pin assignments) set in platformio.ini and config.h. Use the `config` or `pins` command to see your current build configuration and all runtime pin assignments.
 
 ## Essential Commands
 
@@ -8,7 +8,8 @@
 |---------|-------------|
 | `help` | Show all available commands |
 | `status` | Show complete system status |
-| `config` | Show client configuration |
+| `config` | Show client configuration (all runtime config, device name, pins) |
+| `pins` | Show all runtime pin assignments (amp switch, button, LED, MIDI) |
 | `debug` | Show debug information |
 | `restart` | Reboot the device |
 
@@ -46,10 +47,22 @@
 | `network` | Show WiFi status |
 | `amp` | Show amp channel status |
 | `pairing` | Show pairing status |
+| `pins` | Show all runtime pin assignments (amp switch, button, LED, MIDI) |
 | `uptime` | Show system uptime |
 | `version` | Show firmware version |
 | `midi` | Show MIDI configuration |
 | `buttons` | Toggle button checking on/off |
+
+### Example Output for `pins` Command
+```
+[INFO] === PIN ASSIGNMENTS ===
+[INFO] Amp Switch Pins: 2,3,4,5
+[INFO] Amp Button Pins: 8,9,10,20
+[INFO] Status/Pairing LED Pin: 1
+[INFO] MIDI RX Pin: 6
+[INFO] MIDI TX Pin: 7
+[INFO] ======================
+```
 
 ## Debug Commands
 
@@ -78,6 +91,9 @@
 
 ## Configuration Support & Pin Assignments
 
+- All pin assignments, device name, and channel count are set via `platformio.ini` and parsed at runtime. The `config` and `pins` commands always show the actual runtime configuration.
+- **MIDI RX/TX pins** are now reported in the `pins` command.
+
 **4-Channel Example (default):**
 - **Relay (Switch) Pins:** 2, 3, 4, 5
 - **Button Pins:** 8, 9, 10, 20
@@ -87,7 +103,15 @@
 > **Note:** GPIO 1 is reserved for the status/pairing LED. Do **not** use GPIO 1 for relays or switches.
 > **Note:** GPIO 20 is used for the 4th amp button on the ESP32-C3 Super Mini. GPIO 11 is not available on this board.
 
-Use the `config` command to see your current build configuration and pin assignments.
+Use the `config` or `pins` command to see your current build configuration and pin assignments.
+
+## LED Feedback Patterns
+- **Single Flash:** ESP-NOW data received
+- **Double Flash:** Serial command or ESP-NOW command received
+- **Triple Flash:** MIDI message received
+- **Fast Blink:** OTA update in progress
+- **Solid On:** Error state
+- **Fade/Breath:** Pairing mode
 
 ## Common Usage Examples
 
@@ -101,6 +125,9 @@ status
 # Check current configuration
 config
 
+# Show all pin assignments
+pins
+
 # Switch to channel 2
 2
 
@@ -109,9 +136,6 @@ debug
 
 # Test LED
 testled
-
-# Check memory usage
-debugmemory
 
 # Clear all settings
 clearall
@@ -127,7 +151,7 @@ restart
 3. **Memory issues**: Use `debugmemory`
 4. **WiFi problems**: Use `debugwifi`
 5. **Pairing issues**: Use `pair` then check `debugespnow`
-6. **Wrong configuration**: Use `config` to verify settings
+6. **Wrong configuration**: Use `config` or `pins` to verify current configuration and pin assignments
 7. **Reset everything**: Use `clearall` to reset all settings
 
 ## Log Levels Explained
@@ -174,4 +198,9 @@ Available build environments:
 - `client-4ch-amp`: 4-channel amp switcher  
 - `client-amp-switcher`: Original 4-channel configuration
 
-Build with: `platformio run -e <environment>` 
+Build with: `platformio run -e <environment>`
+
+## Troubleshooting
+
+- If the `pins` or `config` command does not match your expected configuration, check your `platformio.ini` build flags and rebuild the firmware.
+- All configuration is dynamic and reported at runtime. 
