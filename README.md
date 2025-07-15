@@ -49,7 +49,7 @@ platformio run -e client-custom-amp
 
 ### Pin Configuration
 - **Amp Switch Pins**: GPIO 2, 3, 4, 5 (relay control)
-- **Amp Button Pins**: GPIO 8, 9, 10, 11 (physical buttons)
+- **Amp Button Pins**: GPIO 8, 9, 10, 20 (physical buttons)
 - **Status/Pairing LED**: GPIO 1 (PWM, reserved for LED only)
 - **MIDI RX**: GPIO 6
 - **MIDI TX**: GPIO 7
@@ -68,8 +68,10 @@ platformio run -e client-custom-amp
 | Configuration | Channels | Switch Pins | Button Pins | Device Name |
 |---------------|----------|-------------|-------------|-------------|
 | `client-2ch-amp` | 2 | 4, 5 | 8, 9 | 2CH_AMP |
-| `client-4ch-amp` | 4 | 2, 3, 4, 5 | 8, 9, 10, 11 | 4CH_AMP |
-| `client-amp-switcher` | 4 | 2, 3, 4, 5 | 8, 9, 10, 11 | AMP_SWITCHER_1 |
+| `client-4ch-amp` | 4 | 2, 3, 4, 5 | 8, 9, 10, 20 | 4CH_AMP |
+| `client-amp-switcher` | 4 | 2, 3, 4, 5 | 8, 9, 10, 20 | AMP_SWITCHER_1 |
+
+> **Note:** GPIO 20 is used for the 4th amp button on the ESP32-C3 Super Mini. GPIO 11 is not available on this board.
 
 ## Enhanced Logging System
 

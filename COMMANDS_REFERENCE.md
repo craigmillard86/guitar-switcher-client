@@ -80,11 +80,12 @@
 
 **4-Channel Example (default):**
 - **Relay (Switch) Pins:** 2, 3, 4, 5
-- **Button Pins:** 8, 9, 10, 11
+- **Button Pins:** 8, 9, 10, 20
 - **Status/Pairing LED:** 1 (reserved for LED only)
 - **MIDI RX/TX:** 6, 7
 
 > **Note:** GPIO 1 is reserved for the status/pairing LED. Do **not** use GPIO 1 for relays or switches.
+> **Note:** GPIO 20 is used for the 4th amp button on the ESP32-C3 Super Mini. GPIO 11 is not available on this board.
 
 Use the `config` command to see your current build configuration and pin assignments.
 
