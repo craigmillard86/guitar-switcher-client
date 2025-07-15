@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once
-#include "dataStructs.h"
-#include <Arduino.h>
 
-void handleCommand(uint8_t commandType, uint8_t value);
-void setAmpChannel(uint8_t channel);
-void checkAmpChannelButtons();
-void handleProgramChange(byte midiChannel, byte program);
+// Pairing status enum and global variable
+
+enum PairingStatus {NOT_PAIRED, PAIR_REQUEST, PAIR_REQUESTED, PAIR_PAIRED};
+extern PairingStatus pairingStatus; 

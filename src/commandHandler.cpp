@@ -1,4 +1,20 @@
+// Copyright (c) Craig Millard and contributors. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include <Arduino.h>
+#include "config.h"
 #include "commandHandler.h"
+#include "pairing.h"
 #include "globals.h"
 #include "espnow-pairing.h"
 #include "utils.h"
@@ -12,7 +28,10 @@ void checkAmpChannelButtons() {
     static unsigned long lastDebounceTime[MAX_AMPSWITCHS] = {0};
     static uint8_t lastButtonState[MAX_AMPSWITCHS] = {HIGH};
     static bool buttonPressed[MAX_AMPSWITCHS] = {false};
+    static unsigned long button1PressStart = 0;
+    static bool button1LongPressHandled = false;
     const unsigned long debounceDelay = 100; // Increased debounce delay
+    const unsigned long longPressTime = 5000; // 5 seconds
 
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         uint8_t reading = digitalRead(ampButtonPins[i]);
@@ -24,15 +43,37 @@ void checkAmpChannelButtons() {
         
         // Check if enough time has passed since last change
         if ((millis() - lastDebounceTime[i]) > debounceDelay) {
-            // Button is pressed (active LOW) and not already processed
-            if (reading == LOW && !buttonPressed[i] && currentAmpChannel != (i + 1)) {
-                log(LOG_INFO, "Button " + String(i + 1) + " pressed, switching to channel " + String(i + 1));
-                setAmpChannel(i + 1);
-                buttonPressed[i] = true; // Mark as pressed to prevent repeat
-            }
-            // Button is released (HIGH) - reset the pressed flag
-            else if (reading == HIGH && buttonPressed[i]) {
-                buttonPressed[i] = false;
+            if (i == 0) { // Button 1: support long press for pairing
+                if (reading == LOW && !buttonPressed[i]) {
+                    button1PressStart = millis();
+                    buttonPressed[i] = true;
+                    button1LongPressHandled = false;
+                } else if (reading == LOW && buttonPressed[i]) {
+                    // Still held
+                    if (!button1LongPressHandled && (millis() - button1PressStart > longPressTime)) {
+                        clearPairingNVS();
+                        pairingStatus = NOT_PAIRED;
+                        log(LOG_INFO, "Long press detected on Button 1: Pairing mode triggered!");
+                        button1LongPressHandled = true;
+                    }
+                } else if (reading == HIGH && buttonPressed[i]) {
+                    // Released
+                    if (!button1LongPressHandled && (millis() - button1PressStart < longPressTime)) {
+                        log(LOG_INFO, "Button 1 short press: switching to channel 1");
+                        setAmpChannel(1);
+                    }
+                    buttonPressed[i] = false;
+                    button1LongPressHandled = false;
+                }
+            } else {
+                // Other buttons: normal short press logic
+                if (reading == LOW && !buttonPressed[i] && currentAmpChannel != (i + 1)) {
+                    log(LOG_INFO, "Button " + String(i + 1) + " pressed, switching to channel " + String(i + 1));
+                    setAmpChannel(i + 1);
+                    buttonPressed[i] = true; // Mark as pressed to prevent repeat
+                } else if (reading == HIGH && buttonPressed[i]) {
+                    buttonPressed[i] = false;
+                }
             }
         }
         

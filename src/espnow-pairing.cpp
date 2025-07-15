@@ -1,3 +1,20 @@
+// Copyright (c) Craig Millard and contributors. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+#include <Arduino.h>
+#include "config.h"
+#include "pairing.h"
 #include "espnow-pairing.h"
 #include "globals.h"
 #include "utils.h"
@@ -92,29 +109,6 @@ bool loadServerFromNVS(uint8_t* mac, uint8_t* channel) {
         log(LOG_ERROR, "Failed to open NVS for reading!");
     }
     return success;
-}
-
-void checkPairingButton() {
-    static bool lastState = HIGH;
-    static unsigned long lastDebounceTime = 0;
-    const unsigned long debounceDelay = 50; // milliseconds
-
-    bool reading = digitalRead(PAIRING_BUTTON_PIN);
-
-    if (reading != lastState) {
-        lastDebounceTime = millis();
-    }
-
-    if ((millis() - lastDebounceTime) > debounceDelay) {
-        // Button is pressed (active LOW), and debounced:
-        if (reading == LOW && lastState == HIGH) {
-            clearPairingNVS();
-            pairingStatus = NOT_PAIRED;
-            log(LOG_INFO, "Pairing button pressed, re-pairing requested");
-        }
-    }
-
-    lastState = reading;
 }
 
 void addPeer(const uint8_t* mac_addr, uint8_t chan) {

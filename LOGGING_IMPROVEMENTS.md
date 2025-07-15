@@ -1,7 +1,9 @@
 # Logging Improvements Summary
 
+> **Note:** Log level persistence and configuration display are now tied to the build-time configuration system. The logging system adapts to the selected CLIENT_TYPE and configuration, and the config command shows the current build settings.
+
 ## Overview
-This document summarizes all the logging improvements made to the ESP32 Amp Channel Switcher project to ensure consistent, professional logging throughout the codebase.
+This document summarizes all the logging improvements made to the ESP32 Amp Channel Switcher project to ensure consistent, professional logging throughout the codebase with NVS persistence and configuration system integration.
 
 ## Key Improvements Made
 
@@ -17,13 +19,26 @@ This document summarizes all the logging improvements made to the ESP32 Amp Chan
 - **LOG_INFO (3)**: Normal operation information
 - **LOG_DEBUG (4)**: Detailed debug information
 
-### 3. **Files Updated**
+### 3. **NVS Log Level Persistence**
+- **Log levels saved to NVS**: Settings persist across reboots
+- **Version control**: Storage version checking for compatibility
+- **Commands**: `setlogN`, `loglevel`, `clearlog`, `clearall`
+- **Default fallback**: LOG_INFO if NVS unavailable
+
+### 4. **Configuration System Integration**
+- **Build-time configuration**: Multiple amp configurations
+- **Config command**: `config` shows current client configuration
+- **Device-specific logging**: Different configurations for different amps
+- **Pin assignment logging**: Shows configured pins for current setup
+
+### 5. **Files Updated**
 
 #### `src/main.cpp`
 - ✅ Added proper initialization logging
 - ✅ Used correct log levels (INFO for startup, DEBUG for details)
 - ✅ Added performance monitoring
 - ✅ Enhanced error handling
+- ✅ Added client configuration initialization
 
 #### `src/utils.cpp`
 - ✅ Complete rewrite with enhanced logging system
@@ -31,6 +46,8 @@ This document summarizes all the logging improvements made to the ESP32 Amp Chan
 - ✅ Comprehensive serial command handling
 - ✅ System status and debug functions
 - ✅ Memory tracking and performance monitoring
+- ✅ NVS log level persistence functions
+- ✅ Configuration display functions
 
 #### `src/commandHandler.cpp`
 - ✅ Updated amp channel operations with proper logging
@@ -62,13 +79,26 @@ This document summarizes all the logging improvements made to the ESP32 Amp Chan
 - ✅ WiFi and ESP-NOW statistics
 - ✅ Task and system monitoring
 
-### 4. **New Features Added**
+#### `src/config.cpp` (New)
+- ✅ Client configuration management
+- ✅ Pin array parsing and initialization
+- ✅ Configuration display functions
+- ✅ Build-time configuration integration
+
+### 6. **New Features Added**
 
 #### Enhanced Logging Functions
 ```cpp
 void log(LogLevel level, const String& msg);
 void logf(LogLevel level, const char* format, ...);
 void logWithTimestamp(LogLevel level, const String& msg);
+```
+
+#### NVS Log Level Management
+```cpp
+void saveLogLevelToNVS(LogLevel level);
+LogLevel loadLogLevelFromNVS();
+void clearLogLevelNVS();
 ```
 
 #### System Status Functions
@@ -78,6 +108,7 @@ void printMemoryInfo();
 void printNetworkStatus();
 void printAmpChannelStatus();
 void printPairingStatus();
+void printClientConfiguration();
 ```
 
 #### Performance Monitoring
@@ -87,11 +118,12 @@ void updateMemoryStats();
 void printMemoryLeakInfo();
 ```
 
-### 5. **Serial Commands Enhanced**
+### 7. **Serial Commands Enhanced**
 
 #### System Commands
 - `help` - Complete help menu
 - `status` - System status overview
+- `config` - Show client configuration
 - `memory` - Memory usage details
 - `network` - WiFi status
 - `amp` - Amp channel status
@@ -99,6 +131,13 @@ void printMemoryLeakInfo();
 - `uptime` - System uptime
 - `version` - Firmware version
 - `midi` - MIDI configuration
+- `buttons` - Toggle button checking
+
+#### Logging Commands
+- `setlogN` - Set log level (N=0-4)
+- `loglevel` - Show current log level
+- `clearlog` - Clear saved log level
+- `clearall` - Clear all NVS data
 
 #### Debug Commands
 - `debug` - Complete debug info
@@ -112,9 +151,8 @@ void printMemoryLeakInfo();
 - `restart` - Reboot device
 - `ota` - Enter OTA mode
 - `pair` - Re-pair devices
-- `setlogN` - Set log level
 
-### 6. **Log Level Usage Guidelines**
+### 8. **Log Level Usage Guidelines**
 
 #### LOG_ERROR (1)
 - Critical system failures
@@ -140,7 +178,7 @@ void printMemoryLeakInfo();
 - Memory usage details
 - Packet information
 
-### 7. **Memory Management**
+### 9. **Memory Management**
 
 #### Memory Tracking
 - Initial memory baseline
@@ -154,33 +192,59 @@ void printMemoryLeakInfo();
 - WiFi performance metrics
 - Task statistics
 
-### 8. **Benefits of Improvements**
+### 10. **Configuration System**
+
+#### Build-Time Configuration
+- Multiple amp configurations (2ch, 4ch)
+- Different pin assignments per configuration
+- Device-specific names and settings
+- PlatformIO build environment support
+
+#### Configuration Display
+- `config` command shows current setup
+- Pin assignments and channel count
+- Device name and client type
+- Build-time configuration details
+
+### 11. **Benefits of Improvements**
 
 #### For Development
 - **Easier Debugging**: Structured logs with timestamps
 - **Better Error Tracking**: Proper error levels and messages
 - **Performance Monitoring**: Real-time system metrics
 - **Memory Management**: Leak detection and monitoring
+- **Configuration Management**: Build-time configuration system
 
 #### For Users
 - **Clear Status**: Easy to understand system state
 - **Troubleshooting**: Comprehensive debug commands
 - **Remote Monitoring**: Detailed system information
 - **Performance Insights**: Loop timing and memory usage
+- **Persistent Settings**: Log levels saved across reboots
+- **Configuration Awareness**: Know your current setup
 
 #### For Maintenance
 - **Consistent Format**: All logs follow same pattern
-- **Configurable Levels**: Adjustable verbosity
+- **Configurable Levels**: Adjustable verbosity with persistence
 - **Comprehensive Coverage**: All major operations logged
 - **Error Recovery**: Better error handling and reporting
+- **Multi-Configuration Support**: Different setups for different amps
 
-### 9. **Usage Examples**
+### 12. **Usage Examples**
 
 #### Setting Log Level
 ```bash
 setlog3  # Show info and above
 setlog4  # Show all messages including debug
 setlog1  # Show only errors
+loglevel # Check current level
+clearlog # Reset to default
+```
+
+#### Configuration Management
+```bash
+config    # Show current configuration
+clearall  # Reset all settings
 ```
 
 #### Monitoring System
@@ -198,36 +262,20 @@ debugwifi
 debugespnow
 debugmemory
 
-# Test hardware
-testled
-testpairing
+# Check configuration
+config
 
-# Reset if needed
-restart
+# Reset everything
+clearall
 ```
 
-### 10. **Future Enhancements**
+### 13. **Build Configurations**
 
-#### Potential Additions
-- **Log Persistence**: Save logs to flash memory
-- **Remote Logging**: Send logs over network
-- **Log Filtering**: Filter by component/module
-- **Log Compression**: Compress old logs
-- **Web Interface**: View logs via web browser
+Available build environments:
+- `client-2ch-amp`: 2-channel amp switcher
+- `client-4ch-amp`: 4-channel amp switcher  
+- `client-amp-switcher`: Original 4-channel configuration
 
-#### Monitoring Improvements
-- **Temperature Monitoring**: CPU temperature tracking
-- **Power Monitoring**: Battery/voltage monitoring
-- **Network Quality**: Signal strength and packet loss
-- **Custom Metrics**: User-defined performance metrics
+Build with: `platformio run -e <environment>`
 
-## Conclusion
-
-The logging system has been completely overhauled to provide:
-- **Professional-grade logging** with timestamps and levels
-- **Comprehensive debugging tools** for development and troubleshooting
-- **Performance monitoring** for system optimization
-- **Memory management** for stability and reliability
-- **User-friendly commands** for easy system management
-
-This enhanced logging system makes the ESP32 Amp Channel Switcher much more maintainable, debuggable, and user-friendly while providing valuable insights into system performance and health. 
+The logging system has been completely overhauled to provide professional-grade debugging and monitoring capabilities with persistent settings and multi-configuration support while maintaining backward compatibility with existing functionality. 

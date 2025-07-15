@@ -1,3 +1,17 @@
+// Copyright (c) Craig Millard and contributors. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 #include <Arduino.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
@@ -5,9 +19,11 @@
 #include <esp_pm.h>
 #include <esp_wifi_types.h>
 #include <dataStructs.h>
+#include "config.h"
+#include "pairing.h"
+#include "espnow-pairing.h"
 #include <globals.h>
 #include <utils.h>
-#include <espnow-pairing.h>
 #include <otaManager.h>
 #include <espnow.h>
 #include <MIDI.h>
@@ -27,27 +43,17 @@ void setup() {
     // Load log level from NVS
     currentLogLevel = loadLogLevelFromNVS();
     
-    log(LOG_INFO, "=== ESP32 Amp Channel Switcher Starting ===");
+    // Initialize client configuration
+    initializeClientConfiguration();
+    
+    log(LOG_INFO, "=== ESP32 Client Starting ===");
     log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
     log(LOG_INFO, "Board ID: " + String(BOARD_ID));
-    
-    // Initialize amp switch pins
-    log(LOG_DEBUG, "Initializing amp switch pins...");
-    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-        pinMode(ampSwitchPins[i], OUTPUT);
-        digitalWrite(ampSwitchPins[i], LOW); // Start all OFF
-    }
-    digitalWrite(ampSwitchPins[0], HIGH); // Start with channel 1
-    log(LOG_DEBUG, "Amp switch pins initialized");
     
     // Initialize status LED
     pinMode(STATUS_LED_PIN, OUTPUT);
     log(LOG_DEBUG, "Status LED initialized on pin " + String(STATUS_LED_PIN));
-    
-    // Initialize pairing button
-    pinMode(PAIRING_BUTTON_PIN, INPUT_PULLUP);
-    log(LOG_DEBUG, "Pairing button initialized on pin " + String(PAIRING_BUTTON_PIN));
-    
+     
     // Setup pairing LED
     ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
     ledcAttachPin(PAIRING_LED_PIN, LEDC_CHANNEL_0);
@@ -71,15 +77,37 @@ void setup() {
     
     // OTA trigger check
     unsigned long serialWaitStart = millis();
-    log(LOG_INFO, "Enter 'ota' within 10 seconds to enter OTA mode...");
+    log(LOG_INFO, "Enter 'ota' within 10 seconds or hold Button 1 for 5s to enter OTA mode...");
+
+    bool button1OtaTriggered = false;
+    const unsigned long otaButtonHoldTime = 5000; // 5 seconds
+    bool button1WasPressed = false;
+    unsigned long button1PressStart = 0;
 
     while (millis() - serialWaitStart < 10000) {
         checkSerialCommands();
         delay(10);
         if (serialOtaTrigger) break;
+
+        // Check for long press on button 1 (ampButtonPins[0])
+        int button1State = digitalRead(ampButtonPins[0]);
+        if (button1State == LOW && !button1WasPressed) {
+            button1PressStart = millis();
+            button1WasPressed = true;
+        } else if (button1State == LOW && button1WasPressed) {
+            if (!button1OtaTriggered && (millis() - button1PressStart > otaButtonHoldTime)) {
+                serialOtaTrigger = true;
+                button1OtaTriggered = true;
+                log(LOG_INFO, "OTA mode triggered by holding Button 1");
+                break;
+            }
+        } else if (button1State == HIGH && button1WasPressed) {
+            button1WasPressed = false;
+            button1PressStart = 0;
+        }
     }
 
-    if (checkOtaTrigger() || serialOtaTrigger) {
+    if (serialOtaTrigger) {
         log(LOG_INFO, "OTA mode triggered, starting OTA...");
         startOTA();
         return;
@@ -126,7 +154,6 @@ void loop() {
     unsigned long loopStart = millis();
     
     // Check for button presses and serial commands
-    checkPairingButton();
     checkAmpChannelButtons();
     updatePairingLED();
     checkSerialCommands();
