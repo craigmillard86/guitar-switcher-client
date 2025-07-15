@@ -48,12 +48,13 @@ platformio run -e client-custom-amp
 ## Hardware Setup
 
 ### Pin Configuration
-- **Amp Switch Pins**: GPIO 4, 5, 6, 7 (relay control)
+- **Amp Switch Pins**: GPIO 2, 3, 4, 5 (relay control)
 - **Amp Button Pins**: GPIO 8, 9, 10, 11 (physical buttons)
-- **Status LED**: GPIO 2
-- **Pairing LED**: GPIO 2 (PWM)
+- **Status/Pairing LED**: GPIO 1 (PWM, reserved for LED only)
 - **MIDI RX**: GPIO 6
 - **MIDI TX**: GPIO 7
+
+> **Note:** GPIO 1 is reserved for the status/pairing LED. Do **not** use GPIO 1 for relays or switches to avoid conflicts.
 
 **Button 1 (amp channel 1 button) now has multiple functions:**
 - **Short press (<5s):** Switch to channel 1
@@ -67,8 +68,8 @@ platformio run -e client-custom-amp
 | Configuration | Channels | Switch Pins | Button Pins | Device Name |
 |---------------|----------|-------------|-------------|-------------|
 | `client-2ch-amp` | 2 | 4, 5 | 8, 9 | 2CH_AMP |
-| `client-4ch-amp` | 4 | 4, 5, 6, 7 | 8, 9, 10, 11 | 4CH_AMP |
-| `client-amp-switcher` | 4 | 4, 5, 6, 7 | 8, 9, 10, 11 | AMP_SWITCHER_1 |
+| `client-4ch-amp` | 4 | 2, 3, 4, 5 | 8, 9, 10, 11 | 4CH_AMP |
+| `client-amp-switcher` | 4 | 2, 3, 4, 5 | 8, 9, 10, 11 | AMP_SWITCHER_1 |
 
 ## Enhanced Logging System
 

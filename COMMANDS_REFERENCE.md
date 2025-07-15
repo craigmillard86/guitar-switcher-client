@@ -76,14 +76,17 @@
 | `pair` | Clear pairing and re-pair |
 | `clearall` | Clear all NVS data (pairing + log level) |
 
-## Configuration Support
+## Configuration Support & Pin Assignments
 
-The system supports different amp configurations:
+**4-Channel Example (default):**
+- **Relay (Switch) Pins:** 2, 3, 4, 5
+- **Button Pins:** 8, 9, 10, 11
+- **Status/Pairing LED:** 1 (reserved for LED only)
+- **MIDI RX/TX:** 6, 7
 
-- **2-Channel Configs**: Commands `1`, `2`, `b1`, `b2` only
-- **4-Channel Configs**: Commands `1`, `2`, `3`, `4`, `b1`, `b2`, `b3`, `b4`
+> **Note:** GPIO 1 is reserved for the status/pairing LED. Do **not** use GPIO 1 for relays or switches.
 
-Use `config` command to see your current configuration.
+Use the `config` command to see your current build configuration and pin assignments.
 
 ## Common Usage Examples
 
