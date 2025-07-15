@@ -50,3 +50,6 @@ void clearLogLevelNVS();
 
 // Client configuration functions
 void printClientConfiguration();
+
+void setStatusLedPattern(StatusLedPattern pattern);
+void updateStatusLED();

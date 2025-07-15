@@ -48,6 +48,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
     
     switch (type) {
         case DATA:      // we received data from server
+            setStatusLedPattern(LED_SINGLE_FLASH);
             memcpy(&inData, incomingData, sizeof(inData));
             log(LOG_DEBUG, "Data packet received:");
             log(LOG_DEBUG, "  ID: " + String(inData.id));
@@ -63,6 +64,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
             break;
 
         case PAIRING:    // we received pairing data from server
+            setStatusLedPattern(LED_SINGLE_FLASH);
             memcpy(&pairingData, incomingData, sizeof(pairingData));
             if (pairingData.id == 0) {              // the message comes from server
                 log(LOG_INFO, "Pairing successful!");
@@ -81,6 +83,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
             break;
 
         case COMMAND:
+            setStatusLedPattern(LED_DOUBLE_FLASH);
             log(LOG_INFO, "Command received from server");
             handleCommand(inData.commandType, inData.commandValue);
             break;

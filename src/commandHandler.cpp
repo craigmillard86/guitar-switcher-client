@@ -96,6 +96,7 @@ void handleCommand(uint8_t commandType, uint8_t value) {
 }
 
 void handleProgramChange(byte midiChannel, byte program) {
+    setStatusLedPattern(LED_TRIPLE_FLASH);
     log(LOG_INFO, "MIDI Program Change - Channel: " + String(midiChannel) + ", Program: " + String(program));
     setAmpChannel(program + 1); // MIDI PC#0 = channel 1, etc.
 }

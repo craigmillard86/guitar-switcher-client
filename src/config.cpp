@@ -53,31 +53,43 @@ String getClientTypeString() {
 
 void printClientConfiguration() {
     log(LOG_INFO, "=== CLIENT CONFIGURATION ===");
-    log(LOG_INFO, "Client Type: " + getClientTypeString());
-    log(LOG_INFO, String("Device Name: ") + DEVICE_NAME);
+    log(LOG_INFO, String("Client Type: ") + getClientTypeString());
+    log(LOG_INFO, String("Device Name: ") + deviceName);
     
-    #if HAS_AMP_SWITCHING
+#if HAS_AMP_SWITCHING
     log(LOG_INFO, "Amp Switching: Enabled");
     log(LOG_INFO, "Max Amp Switches: " + String(MAX_AMPSWITCHS));
-    log(LOG_INFO, String("Amp Switch Pins: ") + AMP_SWITCH_PINS);
-    log(LOG_INFO, String("Amp Button Pins: ") + AMP_BUTTON_PINS);
-    #else
+    // Print ampSwitchPins as comma-separated string
+    String switchPinsStr;
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+        switchPinsStr += String(ampSwitchPins[i]);
+        if (i < MAX_AMPSWITCHS - 1) switchPinsStr += ",";
+    }
+    log(LOG_INFO, "Amp Switch Pins: " + switchPinsStr);
+    // Print ampButtonPins as comma-separated string
+    String buttonPinsStr;
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+        buttonPinsStr += String(ampButtonPins[i]);
+        if (i < MAX_AMPSWITCHS - 1) buttonPinsStr += ",";
+    }
+    log(LOG_INFO, "Amp Button Pins: " + buttonPinsStr);
+#else
     log(LOG_INFO, "Amp Switching: Disabled");
-    #endif
-    
+#endif
     log(LOG_INFO, "==========================");
 }
 
 void initializeClientConfiguration() {
     log(LOG_INFO, "Initializing client configuration...");
     
-    #if HAS_AMP_SWITCHING
-    // Parse and set amp switch pins
+#if HAS_AMP_SWITCHING
+    // Parse and set amp switch pins from macro
     uint8_t* switchPins = parsePinArray(AMP_SWITCH_PINS);
-    uint8_t* buttonPins = parsePinArray(AMP_BUTTON_PINS);
-    
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         ampSwitchPins[i] = switchPins[i];
+    }
+    uint8_t* buttonPins = parsePinArray(AMP_BUTTON_PINS);
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         ampButtonPins[i] = buttonPins[i];
         pinMode(ampButtonPins[i], INPUT_PULLUP);
         pinMode(ampSwitchPins[i], OUTPUT);
@@ -85,7 +97,9 @@ void initializeClientConfiguration() {
     }
     digitalWrite(ampSwitchPins[0], HIGH);
     log(LOG_DEBUG, "Amp switching pins initialized");
-    #endif
-    
+#endif
+    // Set device name from macro
+    strncpy(deviceName, DEVICE_NAME, MAX_PEER_NAME_LEN-1);
+    deviceName[MAX_PEER_NAME_LEN-1] = '\0';
     printClientConfiguration();
 } 

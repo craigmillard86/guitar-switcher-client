@@ -169,6 +169,7 @@ void checkSerialCommands() {
 void handleSerialCommand(const String& cmd) {
     if (cmd.isEmpty()) return;
 
+    setStatusLedPattern(LED_DOUBLE_FLASH);
     // System commands
     if (cmd.equalsIgnoreCase("help")) {
         printHelpMenu();
@@ -182,6 +183,24 @@ void handleSerialCommand(const String& cmd) {
         printAmpChannelStatus();
     } else if (cmd.equalsIgnoreCase("pairing")) {
         printPairingStatus();
+    } else if (cmd.equalsIgnoreCase("pins")) {
+        String switchPinsStr;
+        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+            switchPinsStr += String(ampSwitchPins[i]);
+            if (i < MAX_AMPSWITCHS - 1) switchPinsStr += ",";
+        }
+        String buttonPinsStr;
+        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+            buttonPinsStr += String(ampButtonPins[i]);
+            if (i < MAX_AMPSWITCHS - 1) buttonPinsStr += ",";
+        }
+        log(LOG_INFO, "=== PIN ASSIGNMENTS ===");
+        log(LOG_INFO, "Amp Switch Pins: " + switchPinsStr);
+        log(LOG_INFO, "Amp Button Pins: " + buttonPinsStr);
+        log(LOG_INFO, String("Status/Pairing LED Pin: ") + String(PAIRING_LED_PIN));
+        log(LOG_INFO, String("MIDI RX Pin: ") + String(MIDI_RX_PIN));
+        log(LOG_INFO, String("MIDI TX Pin: ") + String(MIDI_TX_PIN));
+        log(LOG_INFO, "======================");
     } else if (cmd.equalsIgnoreCase("uptime")) {
         log(LOG_INFO, "Uptime: " + getUptimeString());
     } else if (cmd.equalsIgnoreCase("restart") || cmd.equalsIgnoreCase("reset")) {
@@ -278,6 +297,7 @@ void printHelpMenu() {
     Serial.println(F("  network     : Show network status"));
     Serial.println(F("  amp         : Show amp channel status"));
     Serial.println(F("  pairing     : Show pairing status"));
+    Serial.println(F("  pins        : Show pin assignments (amp, button, LED, MIDI)"));
     Serial.println(F("  uptime      : Show system uptime"));
     Serial.println(F("  version     : Show firmware version"));
     Serial.println(F("  midi        : Show MIDI configuration"));
@@ -372,4 +392,111 @@ uint32_t getFreeHeap() {
 
 uint32_t getMinFreeHeap() {
     return minFreeHeap;
+}
+
+void setStatusLedPattern(StatusLedPattern pattern) {
+    // If pairing or OTA mode is active, ignore other patterns
+    if (pairingStatus == PAIR_REQUEST) {
+        currentLedPattern = LED_FADE;
+        return;
+    }
+    if (serialOtaTrigger) {
+        currentLedPattern = LED_FAST_BLINK;
+        return;
+    }
+    currentLedPattern = pattern;
+    ledPatternStart = millis();
+    ledPatternStep = 0;
+}
+
+void updateStatusLED() {
+    static uint16_t fadeValue = 0;
+    static int8_t fadeDirection = 1;
+    static unsigned long lastUpdate = 0;
+    static bool ledState = LOW;
+    unsigned long now = millis();
+
+    // Pairing/OTA override
+    if (pairingStatus == PAIR_REQUEST) {
+        // Fade effect
+        fadeValue += fadeDirection * 50;
+        if (fadeValue >= 8191) {
+            fadeValue = 8191;
+            fadeDirection = -1;
+        } else if (fadeValue <= 0) {
+            fadeValue = 0;
+            fadeDirection = 1;
+        }
+        ledcWrite(LEDC_CHANNEL_0, fadeValue);
+        return;
+    } else if (serialOtaTrigger) {
+        // Fast blink
+        digitalWrite(PAIRING_LED_PIN, (now / 100) % 2);
+        ledcWrite(LEDC_CHANNEL_0, 0);
+        return;
+    }
+
+    switch (currentLedPattern) {
+        case LED_SINGLE_FLASH:
+            if (ledPatternStep == 0) {
+                digitalWrite(PAIRING_LED_PIN, HIGH);
+                if (now - ledPatternStart > 80) { ledPatternStep = 1; ledPatternStart = now; }
+            } else if (ledPatternStep == 1) {
+                digitalWrite(PAIRING_LED_PIN, LOW);
+                if (now - ledPatternStart > 120) { currentLedPattern = LED_OFF; }
+            }
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            break;
+        case LED_DOUBLE_FLASH:
+            if (ledPatternStep == 0 || ledPatternStep == 2) {
+                digitalWrite(PAIRING_LED_PIN, HIGH);
+                if (now - ledPatternStart > 60) { ledPatternStep++; ledPatternStart = now; }
+            } else if (ledPatternStep == 1 || ledPatternStep == 3) {
+                digitalWrite(PAIRING_LED_PIN, LOW);
+                if (now - ledPatternStart > 60) { ledPatternStep++; ledPatternStart = now; }
+            } else {
+                currentLedPattern = LED_OFF;
+            }
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            break;
+        case LED_TRIPLE_FLASH:
+            if (ledPatternStep % 2 == 0) {
+                digitalWrite(PAIRING_LED_PIN, HIGH);
+            } else {
+                digitalWrite(PAIRING_LED_PIN, LOW);
+            }
+            if (now - ledPatternStart > 50) {
+                ledPatternStep++;
+                ledPatternStart = now;
+            }
+            if (ledPatternStep > 5) {
+                currentLedPattern = LED_OFF;
+            }
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            break;
+        case LED_FAST_BLINK:
+            digitalWrite(PAIRING_LED_PIN, (now / 100) % 2);
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            break;
+        case LED_SOLID_ON:
+            digitalWrite(PAIRING_LED_PIN, HIGH);
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            break;
+        case LED_FADE:
+            fadeValue += fadeDirection * 50;
+            if (fadeValue >= 8191) {
+                fadeValue = 8191;
+                fadeDirection = -1;
+            } else if (fadeValue <= 0) {
+                fadeValue = 0;
+                fadeDirection = 1;
+            }
+            ledcWrite(LEDC_CHANNEL_0, fadeValue);
+            break;
+        case LED_OFF:
+        default:
+            digitalWrite(PAIRING_LED_PIN, LOW);
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            break;
+    }
 }
