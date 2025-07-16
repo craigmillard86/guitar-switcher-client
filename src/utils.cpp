@@ -282,6 +282,12 @@ void handleSerialCommand(const String& cmd) {
             debugCmd = "debug"; // Default to show all debug info
         }
         handleDebugCommand(debugCmd);
+    } else if (cmd.equalsIgnoreCase("midimap")) {
+        log(LOG_INFO, "=== MIDI PROGRAM CHANGE MAP ===");
+        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+            log(LOG_INFO, String("Channel ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
+        }
+        log(LOG_INFO, "==============================");
     } else {
         log(LOG_WARN, "Unknown command: '" + cmd + "'");
         log(LOG_INFO, "Type 'help' for available commands");
@@ -298,6 +304,7 @@ void printHelpMenu() {
     Serial.println(F("  amp         : Show amp channel status"));
     Serial.println(F("  pairing     : Show pairing status"));
     Serial.println(F("  pins        : Show pin assignments (amp, button, LED, MIDI)"));
+    Serial.println(F("  midimap     : Show MIDI Program Change to channel mapping"));
     Serial.println(F("  uptime      : Show system uptime"));
     Serial.println(F("  version     : Show firmware version"));
     Serial.println(F("  midi        : Show MIDI configuration"));

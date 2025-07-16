@@ -48,6 +48,7 @@
 | `amp` | Show amp channel status |
 | `pairing` | Show pairing status |
 | `pins` | Show all runtime pin assignments (amp switch, button, LED, MIDI) |
+| `midimap` | Show MIDI Program Change to channel mapping |
 | `uptime` | Show system uptime |
 | `version` | Show firmware version |
 | `midi` | Show MIDI configuration |
@@ -63,6 +64,27 @@
 [INFO] MIDI TX Pin: 7
 [INFO] ======================
 ```
+
+### Example Output for `midimap` Command
+```
+[INFO] === MIDI PROGRAM CHANGE MAP ===
+[INFO] Channel 1: PC#0
+[INFO] Channel 2: PC#1
+[INFO] Channel 3: PC#2
+[INFO] Channel 4: PC#3
+[INFO] ==============================
+```
+
+## MIDI Learn Feature
+- **To enter MIDI Learn mode:** Hold Button 1 and Button 2 together for >2 seconds. The device will indicate MIDI Learn mode is armed (LED/serial).
+- **To select a channel:** Release both, then short-press the desired channel button (b1–b4). The device will wait for a MIDI Program Change message.
+- **To assign:** Send a MIDI Program Change from your controller. The received PC number will be mapped to the selected channel and saved to NVS.
+- **To view mapping:** Use the `midimap` serial command.
+- **Mapping is persistent** and can be changed at any time using the above process.
+
+### Troubleshooting
+- If MIDI Learn does not work, ensure you are holding both Button 1 and Button 2 for >2s, then pressing the desired channel button, and then sending a MIDI Program Change.
+- Use `midimap` to verify the current mapping.
 
 ## Debug Commands
 
@@ -191,16 +213,21 @@ config
 | Long press (>5s) | After setup window | Enter pairing mode |
 | Long press (>5s) | During setup window (first 10s after boot) | Enter OTA mode |
 
+## NVS Storage Versioning
+
+All persistent settings (pairing info, log level, MIDI mapping) are stored in NVS (non-volatile storage) with a version number (`STORAGE_VERSION`).
+- On firmware upgrade, if the stored version does not match the current firmware's `STORAGE_VERSION`, the affected settings are reset to safe defaults and the new version is saved.
+- This ensures safe upgrades and prevents configuration corruption if the data structure changes.
+- You can safely update firmware or change configuration without risking old/bad data being loaded.
+
+**NVS versioned settings include:**
+- Pairing info
+- Log level
+- MIDI Program Change mapping
+
+If you see a warning about an NVS version mismatch, the device has reset that setting to defaults for safety.
+
 ## Build Configurations
 
 Available build environments:
-- `client-2ch-amp`: 2-channel amp switcher
-- `client-4ch-amp`: 4-channel amp switcher  
-- `client-amp-switcher`: Original 4-channel configuration
-
-Build with: `platformio run -e <environment>`
-
-## Troubleshooting
-
-- If the `pins` or `config` command does not match your expected configuration, check your `platformio.ini` build flags and rebuild the firmware.
-- All configuration is dynamic and reported at runtime. 
+- `

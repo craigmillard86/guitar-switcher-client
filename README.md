@@ -85,6 +85,7 @@ platformio run -e client-custom-amp
 | `status` | Show complete system status |
 | `config` | Show client configuration (all runtime config, device name, pins) |
 | `pins` | Show all runtime pin assignments (amp switch, button, LED, MIDI) |
+| `midimap` | Show MIDI Program Change to channel mapping |
 | `memory` | Show memory usage |
 | `network` | Show network status |
 | `amp` | Show amp channel status |
@@ -93,6 +94,23 @@ platformio run -e client-custom-amp
 | `version` | Show firmware version |
 | `midi` | Show MIDI configuration |
 | `buttons` | Toggle button checking on/off |
+
+### MIDI Learn Feature
+- **To enter MIDI Learn mode:** Hold Button 1 and Button 2 together for >2 seconds. The device will indicate MIDI Learn mode is armed (LED/serial).
+- **To select a channel:** Release both, then short-press the desired channel button (b1–b4). The device will wait for a MIDI Program Change message.
+- **To assign:** Send a MIDI Program Change from your controller. The received PC number will be mapped to the selected channel and saved to NVS.
+- **To view mapping:** Use the `midimap` serial command.
+- **Mapping is persistent** and can be changed at any time using the above process.
+
+#### Example Output for `midimap` Command
+```
+[INFO] === MIDI PROGRAM CHANGE MAP ===
+[INFO] Channel 1: PC#0
+[INFO] Channel 2: PC#1
+[INFO] Channel 3: PC#2
+[INFO] Channel 4: PC#3
+[INFO] ==============================
+```
 
 ### Control Commands
 | Command | Description |
@@ -166,81 +184,20 @@ platformio run -e client-custom-amp
 - **Solid On:** Error state
 - **Fade/Breath:** Pairing mode
 
-## Troubleshooting
+## NVS Storage Versioning
 
-- If the `pins` or `config` command does not match your expected configuration, check your `platformio.ini` build flags and rebuild the firmware.
-- All configuration is dynamic and reported at runtime.
+All persistent settings (pairing info, log level, MIDI mapping) are stored in NVS (non-volatile storage) with a version number (`STORAGE_VERSION`).
+- On firmware upgrade, if the stored version does not match the current firmware's `STORAGE_VERSION`, the affected settings are reset to safe defaults and the new version is saved.
+- This ensures safe upgrades and prevents configuration corruption if the data structure changes.
+- You can safely update firmware or change configuration without risking old/bad data being loaded.
 
-## Building and Flashing
+**NVS versioned settings include:**
+- Pairing info
+- Log level
+- MIDI Program Change mapping
 
-### Prerequisites
-1. Install PlatformIO
-2. Open the project in PlatformIO
-3. Configure your board in `platformio.ini`
-
-### Build Configurations
-
-The project supports multiple build configurations for different amp setups:
-
-```bash
-# For 2-channel amp
-platformio run -e client-2ch-amp
-
-# For 4-channel amp
-platformio run -e client-4ch-amp
-
-# For original amp switcher
-platformio run -e client-amp-switcher
-
-# Build and upload
-platformio run -e client-2ch-amp --target upload
-```
-
-### Configuration Options
-
-Each build environment defines:
-- **Channel Count**: Number of amp channels (2 or 4)
-- **Pin Assignments**: GPIO pins for switches and buttons
-- **Device Name**: Unique identifier for the device
-
-## Configuration
-
-### Build-Time Configuration
-
-Configuration is handled through PlatformIO build flags in `platformio.ini`:
-
-```ini
-[env:client-2ch-amp]
-build_flags = 
-    -D CLIENT_TYPE=AMP_SWITCHER
-    -D MAX_AMPSWITCHS=2
-    -D AMP_SWITCH_PINS="4,5"
-    -D AMP_BUTTON_PINS="8,9"
-    -D DEVICE_NAME="2CH_AMP"
-```
-
-### Adding New Configurations
-
-To add a new amp configuration:
-
-1. Add a new environment in `platformio.ini`:
-```ini
-[env:client-custom-amp]
-extends = env:esp32-c3-devkitc-02
-build_flags = 
-    -D CLIENT_TYPE=AMP_SWITCHER
-    -D MAX_AMPSWITCHS=3
-    -D AMP_SWITCH_PINS="4,5,6"
-    -D AMP_BUTTON_PINS="8,9,10"
-    -D DEVICE_NAME="CUSTOM_AMP"
-```
-
-2. Build with the new configuration:
-```bash
-platformio run -e client-custom-amp
-```
+If you see a warning about an NVS version mismatch, the device has reset that setting to defaults for safety.
 
 ## Troubleshooting
 
-- If the `pins` or `config` command does not match your expected configuration, check your `platformio.ini` build flags and rebuild the firmware.
-- All configuration is dynamic and reported at runtime. 
+- If the `pins` or `

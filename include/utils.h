@@ -53,3 +53,6 @@ void printClientConfiguration();
 
 void setStatusLedPattern(StatusLedPattern pattern);
 void updateStatusLED();
+
+void saveMidiMapToNVS();
+void loadMidiMapFromNVS();

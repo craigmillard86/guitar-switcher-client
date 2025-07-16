@@ -45,6 +45,9 @@ void setup() {
     
     // Initialize client configuration
     initializeClientConfiguration();
+
+    // Load MIDI mapping from NVS
+    loadMidiMapFromNVS();
     
     log(LOG_INFO, "=== ESP32 Client Starting ===");
     log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));

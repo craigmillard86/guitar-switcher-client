@@ -71,3 +71,7 @@ enum StatusLedPattern {
 extern volatile StatusLedPattern currentLedPattern;
 extern volatile unsigned long ledPatternStart;
 extern volatile int ledPatternStep;
+
+extern bool midiLearnArmed;
+extern int midiLearnChannel;
+extern uint8_t midiChannelMap[MAX_AMPSWITCHS];

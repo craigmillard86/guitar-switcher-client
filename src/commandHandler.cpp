@@ -18,6 +18,7 @@
 #include "globals.h"
 #include "espnow-pairing.h"
 #include "utils.h"
+#include <Preferences.h>
 
 void checkAmpChannelButtons() {
     // Skip button checking if disabled (when buttons aren't connected)
@@ -33,6 +34,23 @@ void checkAmpChannelButtons() {
     const unsigned long debounceDelay = BUTTON_DEBOUNCE_MS;
     const unsigned long longPressTime = BUTTON_LONGPRESS_MS;
 
+    // MIDI Learn chord detection
+    static unsigned long midiLearnChordStart = 0;
+    bool b1 = (digitalRead(ampButtonPins[0]) == LOW);
+    bool b2 = (digitalRead(ampButtonPins[1]) == LOW);
+    const unsigned long midiLearnChordTime = 2000; // 2 seconds
+
+    if (b1 && b2) {
+        if (midiLearnChordStart == 0) midiLearnChordStart = millis();
+        if (!midiLearnArmed && (millis() - midiLearnChordStart > midiLearnChordTime)) {
+            midiLearnArmed = true;
+            log(LOG_INFO, "MIDI Learn mode armed. Release and press a channel button to select.");
+            setStatusLedPattern(LED_FAST_BLINK);
+        }
+    } else {
+        midiLearnChordStart = 0;
+    }
+
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         uint8_t reading = digitalRead(ampButtonPins[i]);
         
@@ -43,6 +61,14 @@ void checkAmpChannelButtons() {
         
         // Check if enough time has passed since last change
         if ((millis() - lastDebounceTime[i]) > debounceDelay) {
+            // MIDI Learn channel select
+            if (midiLearnArmed && reading == LOW && !buttonPressed[i]) {
+                midiLearnChannel = i;
+                midiLearnArmed = false;
+                log(LOG_INFO, String("MIDI Learn: Waiting for MIDI PC for channel ") + String(i+1));
+                setStatusLedPattern(LED_TRIPLE_FLASH);
+            }
+            // Existing logic for pairing/OTA/normal operation
             if (i == 0) { // Button 1: support long press for pairing
                 if (reading == LOW && !buttonPressed[i]) {
                     button1PressStart = millis();
@@ -95,10 +121,57 @@ void handleCommand(uint8_t commandType, uint8_t value) {
     }
 }
 
+void saveMidiMapToNVS() {
+    Preferences nvs;
+    if (nvs.begin("midi_map", false)) {
+        nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+        nvs.putInt("version", STORAGE_VERSION);
+        nvs.end();
+        log(LOG_INFO, "MIDI channel map saved to NVS");
+    }
+}
+
+void loadMidiMapFromNVS() {
+    Preferences nvs;
+    if (nvs.begin("midi_map", true)) {
+        if (nvs.getInt("version", 0) != STORAGE_VERSION) {
+            // Version mismatch: reset to defaults and save
+            for (int i = 0; i < MAX_AMPSWITCHS; i++) midiChannelMap[i] = i;
+            nvs.end();
+            nvs.begin("midi_map", false);
+            nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+            nvs.putInt("version", STORAGE_VERSION);
+            nvs.end();
+            log(LOG_WARN, "MIDI map NVS version mismatch, resetting to defaults");
+        } else if (nvs.getBytesLength("map") == MAX_AMPSWITCHS) {
+            nvs.getBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+            nvs.end();
+            log(LOG_INFO, "MIDI channel map loaded from NVS");
+        } else {
+            nvs.end();
+        }
+    }
+}
+
 void handleProgramChange(byte midiChannel, byte program) {
-    setStatusLedPattern(LED_TRIPLE_FLASH);
-    log(LOG_INFO, "MIDI Program Change - Channel: " + String(midiChannel) + ", Program: " + String(program));
-    setAmpChannel(program + 1); // MIDI PC#0 = channel 1, etc.
+    if (midiLearnChannel >= 0) {
+        midiChannelMap[midiLearnChannel] = program;
+        saveMidiMapToNVS();
+        log(LOG_INFO, String("MIDI PC#") + String(program) + " assigned to channel " + String(midiLearnChannel+1));
+        setStatusLedPattern(LED_SINGLE_FLASH);
+        midiLearnChannel = -1;
+        return;
+    }
+    // Normal operation: use mapping
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+        if (midiChannelMap[i] == program) {
+            setStatusLedPattern(LED_TRIPLE_FLASH);
+            log(LOG_INFO, "MIDI Program Change - Channel: " + String(midiChannel) + ", Program: " + String(program) + " mapped to channel " + String(i+1));
+            setAmpChannel(i + 1);
+            return;
+        }
+    }
+    log(LOG_INFO, "MIDI Program Change - Channel: " + String(midiChannel) + ", Program: " + String(program) + " (no mapping)");
 }
 
 void setAmpChannel(uint8_t channel) {
