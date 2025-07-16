@@ -200,4 +200,21 @@ If you see a warning about an NVS version mismatch, the device has reset that se
 
 ## Troubleshooting
 
-- If the `pins` or `
+- **Pins or config command does not match your expected configuration:**  
+  Check your `platformio.ini` build flags and rebuild the firmware. All configuration is dynamic and reported at runtime.
+- **MIDI Learn does not work:**  
+  Ensure you are holding both Button 1 and Button 2 for >2s, then releasing and pressing the desired channel button, and then sending a MIDI Program Change. Use `midimap` to verify the current mapping.
+- **No serial output:**  
+  Check your serial monitor baud rate (115200), verify your USB connection, and try a different USB cable if needed.
+- **Pairing issues:**  
+  Use the `pair` command to reset pairing. Check WiFi channel compatibility and ensure both devices are in pairing mode.
+- **OTA not working:**  
+  Enter OTA mode by holding Button 1 for 5s during the setup window after boot, or by sending the `ota` serial command.
+- **Memory issues:**  
+  Use `debugmemory` to check memory usage. Monitor for memory leaks and consider reducing log level if needed.
+- **MIDI not working:**  
+  Check MIDI cable connections, verify MIDI channel settings, and test with the `midi` command.
+- **Log level or debug output missing:**  
+  Use `setlog4` to enable all logs, or `loglevel` to check the current log level.
+- **NVS version mismatch warning:**  
+  The device has reset that setting to defaults for safety. This is normal after a firmware upgrade or config structure change.
