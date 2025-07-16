@@ -89,6 +89,12 @@ enum ClientType {
 #ifndef NVS_NAMESPACE
 #define NVS_NAMESPACE "pairing"
 #endif
+#ifndef BUTTON_DEBOUNCE_MS
+#define BUTTON_DEBOUNCE_MS 100 // Button debounce duration in ms
+#endif
+#ifndef BUTTON_LONGPRESS_MS
+#define BUTTON_LONGPRESS_MS 5000 // Button long-press duration in ms
+#endif
 
 // Function declarations
 uint8_t* parsePinArray(const char* pinString);

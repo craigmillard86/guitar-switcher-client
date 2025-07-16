@@ -30,8 +30,8 @@ void checkAmpChannelButtons() {
     static bool buttonPressed[MAX_AMPSWITCHS] = {false};
     static unsigned long button1PressStart = 0;
     static bool button1LongPressHandled = false;
-    const unsigned long debounceDelay = 100; // Increased debounce delay
-    const unsigned long longPressTime = 5000; // 5 seconds
+    const unsigned long debounceDelay = BUTTON_DEBOUNCE_MS;
+    const unsigned long longPressTime = BUTTON_LONGPRESS_MS;
 
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         uint8_t reading = digitalRead(ampButtonPins[i]);
