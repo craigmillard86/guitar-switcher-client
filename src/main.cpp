@@ -59,6 +59,7 @@ void setup() {
     ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
     ledcAttachPin(PAIRING_LED_PIN, LEDC_CHANNEL_0);
     log(LOG_DEBUG, "Pairing LED initialized on pin " + String(PAIRING_LED_PIN));
+    setStatusLedPattern(LED_OFF);
     
     log(LOG_INFO, "Hardware initialization complete");
     
@@ -114,7 +115,7 @@ void setup() {
         startOTA_AP();
         return;
     }
-
+    serialOtaTrigger = false; // Prevent re-entry
     // Check for existing pairing
     if (!loadServerFromNVS(serverAddress, &currentChannel)) {
         log(LOG_WARN, "No paired server found in NVS, starting pairing...");
@@ -159,7 +160,17 @@ void loop() {
     checkAmpChannelButtons();
     updateStatusLED(); // Replaces updatePairingLED()
     checkSerialCommands();
-    
+
+    // Add this block at the top of loop()
+    if (serialOtaTrigger) {
+        log(LOG_INFO, "OTA mode triggered, starting OTA...");
+        updateStatusLED(); // Replaces setStatusLedPattern(LED_FAST_BLINK);
+        startOTA_AP();
+        serialOtaTrigger = false; // Prevent re-entry
+        ESP.restart(); // Optional: reboot after OTA
+        return;
+    }
+
     // Process MIDI messages
     MIDI.read();
 
