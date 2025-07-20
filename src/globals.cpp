@@ -54,4 +54,6 @@ uint8_t midiChannelMap[MAX_AMPSWITCHS] = {0, 1, 2, 3};
 uint8_t midiChannelMap[MAX_AMPSWITCHS] = {0};
 #endif
 
+const unsigned long MIDI_LEARN_TIMEOUT = 30000; // 30 seconds
+
 
