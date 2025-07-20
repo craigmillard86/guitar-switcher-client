@@ -70,13 +70,13 @@ platformio run -e client-custom-amp
 ## Hardware Setup
 
 ### Pin Configuration
-- **Amp Switch Pins**: Set via `AMP_SWITCH_PINS` in `platformio.ini` (e.g., GPIO 2, 3, 4, 5)
-- **Amp Button Pins**: Set via `AMP_BUTTON_PINS` in `platformio.ini` (e.g., GPIO 8, 9, 10, 20)
-- **Status/Pairing LED**: Set via `PAIRING_LED_PIN` (default: GPIO 1, reserved for LED only)
+- **Amp Switch Pins**: Set via `AMP_SWITCH_PINS` in `platformio.ini` (e.g., GPIO 2, 9, 10, 20)
+- **Amp Button Pins**: Set via `AMP_BUTTON_PINS` in `platformio.ini` (e.g., GPIO 1, 3, 4, 5)
+- **Status/Pairing LED**: Set via `PAIRING_LED_PIN` (default: GPIO 8, reserved for LED only)
 - **MIDI RX**: Set via `MIDI_RX_PIN` (default: GPIO 6)
 - **MIDI TX**: Set via `MIDI_TX_PIN` (default: GPIO 7)
 
-> **Note:** GPIO 1 is reserved for the status/pairing LED. Do **not** use GPIO 1 for relays or switches to avoid conflicts.
+> **Note:** GPIO 8 is reserved for the status/pairing LED. Do **not** use GPIO 8 for relays or switches to avoid conflicts.
 
 **Button 1 (amp channel 1 button) now has multiple functions:**
 - **Short press (<5s):** Switch to channel 1
@@ -89,11 +89,8 @@ platformio run -e client-custom-amp
 
 | Configuration | Channels | Switch Pins | Button Pins | Device Name |
 |---------------|----------|-------------|-------------|-------------|
-| `client-2ch-amp` | 2 | 4, 5 | 8, 9 | 2CH_AMP |
-| `client-4ch-amp` | 4 | 2, 3, 4, 5 | 8, 9, 10, 20 | 4CH_AMP |
-| `client-amp-switcher` | 4 | 2, 3, 4, 5 | 8, 9, 10, 20 | AMP_SWITCHER_1 |
-
-> **Note:** GPIO 20 is used for the 4th amp button on the ESP32-C3 Super Mini. GPIO 11 is not available on this board.
+| `client-2ch-amp` | 2 | 2, 9 | 1, 3 | 2CH_AMP |
+| `client-4ch-amp` | 4 | 2, 9, 10, 20 | 1, 3, 4, 5 | 4CH_AMP |
 
 ## Serial Commands
 
@@ -182,7 +179,6 @@ platformio run -e client-custom-amp
 [INFO] MIDI TX Pin: 7
 [INFO] ======================
 ```
-
 ### Example Output for `config` Command
 ```
 [INFO] === CLIENT CONFIGURATION ===

@@ -55,7 +55,7 @@ enum ClientType {
 // Pin assignments and hardware config
 
 #ifndef PAIRING_LED_PIN
-#define PAIRING_LED_PIN 1
+#define PAIRING_LED_PIN 8
 #endif
 #ifndef MIDI_RX_PIN
 #define MIDI_RX_PIN 6
