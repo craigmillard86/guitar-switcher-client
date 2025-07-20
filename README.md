@@ -9,13 +9,32 @@ A sophisticated ESP32-based amplifier channel switcher with wireless control, MI
 - **Runtime Pin Reporting**: Use the `pins` serial command to display all current pin assignments (amp switch, button, LED, MIDI)
 - **Wireless Control**: ESP-NOW communication for wireless remote control
 - **MIDI Support**: Program change messages for channel switching
-- **OTA Updates**: Over-the-air firmware updates
+- **OTA Updates (AP + ElegantOTA)**: Over-the-air firmware updates via built-in Access Point and ElegantOTA web interface
 - **Comprehensive Logging**: Multi-level logging with timestamps and NVS persistence
 - **Serial Commands**: Extensive command interface for debugging and control
 - **Performance Monitoring**: Real-time performance and memory tracking
 - **Auto-Pairing**: Automatic device pairing system
 - **Button Support**: Physical buttons for direct channel switching
 - **LED Feedback Patterns**: Status LED provides feedback for events (data, command, MIDI, OTA, error, pairing)
+
+## OTA Updates (Access Point + ElegantOTA)
+
+**New in this version:**
+- OTA updates are performed by starting the ESP32 as a WiFi Access Point (`ESP32_OTA`, default IP: `192.168.4.1`).
+- ElegantOTA provides a web interface for firmware upload at `http://192.168.4.1/update`.
+- No WiFiManager or captive portal is used—OTA is always available, even with no WiFi configured.
+
+### How to Use OTA Update
+
+1. **Trigger OTA mode** (via serial command `ota`, button, or at boot).
+2. The ESP32 starts an AP named `ESP32_OTA` (password: `12345678`).
+3. Connect your phone or computer to this AP.
+4. Open a browser and go to [http://192.168.4.1/update](http://192.168.4.1/update).
+5. Upload your new firmware.
+6. The ESP32 will reboot and run the new firmware.
+
+**OTA mode is available for 5 minutes per session.**  
+The status LED will indicate OTA mode (fast blink or custom pattern).
 
 ## Build-Time Configuration System
 
@@ -116,7 +135,7 @@ platformio run -e client-custom-amp
 | Command | Description |
 |---------|-------------|
 | `restart` | Reboot the device |
-| `ota` | Enter OTA update mode (only available during setup window, or via serial) |
+| `ota` | Enter OTA update mode (serial command, or hold Button 1 for 5s during boot) |
 | `pair` | Clear pairing and re-pair |
 | `setlogN` | Set log level (N=0-4) |
 | `clearlog` | Clear saved log level |
