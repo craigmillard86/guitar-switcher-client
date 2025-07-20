@@ -53,9 +53,7 @@ enum ClientType {
 #endif
 
 // Pin assignments and hardware config
-#ifndef STATUS_LED_PIN
-#define STATUS_LED_PIN 1
-#endif
+
 #ifndef PAIRING_LED_PIN
 #define PAIRING_LED_PIN 1
 #endif

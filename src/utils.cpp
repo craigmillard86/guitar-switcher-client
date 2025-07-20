@@ -225,7 +225,8 @@ void handleSerialCommand(const String& cmd) {
         }
     } else if (cmd.equalsIgnoreCase("testled")) {
         log(LOG_INFO, "Testing status LED...");
-        blinkLED(STATUS_LED_PIN, 3, 200);
+        //blinkLED(STATUS_LED_PIN, 3, 200);
+        setStatusLedPattern(LED_TRIPLE_FLASH);
     } else if (cmd.equalsIgnoreCase("testpairing")) {
         log(LOG_INFO, "Testing pairing LED...");
         for (int i = 0; i < 5; i++) {
@@ -421,56 +422,41 @@ void updateStatusLED() {
     static int8_t fadeDirection = 1;
     static unsigned long lastUpdate = 0;
     static bool ledState = LOW;
+    static unsigned long lastFadeUpdate = 0;
     unsigned long now = millis();
 
-    // Pairing/OTA override
     if (pairingStatus == PAIR_REQUEST) {
-        // Fade effect
-        fadeValue += fadeDirection * 50;
-        if (fadeValue >= 8191) {
-            fadeValue = 8191;
-            fadeDirection = -1;
-        } else if (fadeValue <= 0) {
-            fadeValue = 0;
-            fadeDirection = 1;
-        }
-        ledcWrite(LEDC_CHANNEL_0, fadeValue);
-        return;
+        currentLedPattern = LED_FADE;
     } else if (serialOtaTrigger) {
-        // Fast blink
-        digitalWrite(PAIRING_LED_PIN, (now / 100) % 2);
-        ledcWrite(LEDC_CHANNEL_0, 0);
-        return;
+        currentLedPattern = LED_FAST_BLINK;
     }
 
     switch (currentLedPattern) {
         case LED_SINGLE_FLASH:
             if (ledPatternStep == 0) {
-                digitalWrite(PAIRING_LED_PIN, HIGH);
+                ledcWrite(LEDC_CHANNEL_0, 8191);
                 if (now - ledPatternStart > 80) { ledPatternStep = 1; ledPatternStart = now; }
             } else if (ledPatternStep == 1) {
-                digitalWrite(PAIRING_LED_PIN, LOW);
+                ledcWrite(LEDC_CHANNEL_0, 0);
                 if (now - ledPatternStart > 120) { currentLedPattern = LED_OFF; }
             }
-            ledcWrite(LEDC_CHANNEL_0, 0);
             break;
         case LED_DOUBLE_FLASH:
             if (ledPatternStep == 0 || ledPatternStep == 2) {
-                digitalWrite(PAIRING_LED_PIN, HIGH);
+                ledcWrite(LEDC_CHANNEL_0, 8191);
                 if (now - ledPatternStart > 60) { ledPatternStep++; ledPatternStart = now; }
             } else if (ledPatternStep == 1 || ledPatternStep == 3) {
-                digitalWrite(PAIRING_LED_PIN, LOW);
+                ledcWrite(LEDC_CHANNEL_0, 0);
                 if (now - ledPatternStart > 60) { ledPatternStep++; ledPatternStart = now; }
             } else {
                 currentLedPattern = LED_OFF;
             }
-            ledcWrite(LEDC_CHANNEL_0, 0);
             break;
         case LED_TRIPLE_FLASH:
             if (ledPatternStep % 2 == 0) {
-                digitalWrite(PAIRING_LED_PIN, HIGH);
+                ledcWrite(LEDC_CHANNEL_0, 8191);
             } else {
-                digitalWrite(PAIRING_LED_PIN, LOW);
+                ledcWrite(LEDC_CHANNEL_0, 0);
             }
             if (now - ledPatternStart > 50) {
                 ledPatternStep++;
@@ -479,31 +465,40 @@ void updateStatusLED() {
             if (ledPatternStep > 5) {
                 currentLedPattern = LED_OFF;
             }
-            ledcWrite(LEDC_CHANNEL_0, 0);
             break;
         case LED_FAST_BLINK:
-            digitalWrite(PAIRING_LED_PIN, (now / 100) % 2);
-            ledcWrite(LEDC_CHANNEL_0, 0);
+            ledcWrite(LEDC_CHANNEL_0, (now / 100) % 2 ? 8191 : 0);
             break;
         case LED_SOLID_ON:
-            digitalWrite(PAIRING_LED_PIN, HIGH);
-            ledcWrite(LEDC_CHANNEL_0, 0);
+            ledcWrite(LEDC_CHANNEL_0, 8191);
             break;
         case LED_FADE:
-            fadeValue += fadeDirection * 50;
-            if (fadeValue >= 8191) {
-                fadeValue = 8191;
-                fadeDirection = -1;
-            } else if (fadeValue <= 0) {
-                fadeValue = 0;
-                fadeDirection = 1;
+            // Smooth 2-second fade cycle - continuous fade from bottom to top and back
+            if (now - lastFadeUpdate > 20) { // Update every 20ms for smooth fade
+                static bool started = false;
+                
+                if (!started) {
+                    fadeValue = 0; // Start from bottom (off)
+                    fadeDirection = 1; // Start fading up
+                    started = true;
+                }
+                
+                fadeValue += fadeDirection * 20; // Smaller increment for smooth fade
+                
+                if (fadeValue >= 8191) {
+                    fadeValue = 8191;
+                    fadeDirection = -1; // Start fading down
+                } else if (fadeValue <= 0) {
+                    fadeValue = 0;
+                    fadeDirection = 1; // Start fading up
+                }
+                
+                ledcWrite(LEDC_CHANNEL_0, fadeValue);
+                lastFadeUpdate = now;
             }
-            ledcWrite(LEDC_CHANNEL_0, fadeValue);
             break;
         case LED_OFF:
-        default:
-            digitalWrite(PAIRING_LED_PIN, LOW);
-            ledcWrite(LEDC_CHANNEL_0, 0);
-            break;
+        ledcWrite(LEDC_CHANNEL_0, 0);
+        break;
     }
 }

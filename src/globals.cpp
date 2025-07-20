@@ -36,7 +36,7 @@ uint8_t ampButtonPins[MAX_AMPSWITCHS] = {0}; // Will be set at runtime
 uint8_t currentAmpChannel = 0; // No channel active at startup
 
 // Button control flag - set to false when buttons aren't connected
-bool enableButtonChecking = false;
+bool enableButtonChecking = true;
 
 volatile StatusLedPattern currentLedPattern = LED_OFF;
 volatile unsigned long ledPatternStart = 0;
@@ -44,6 +44,14 @@ volatile int ledPatternStep = 0;
 
 bool midiLearnArmed = false;
 int midiLearnChannel = -1;
-uint8_t midiChannelMap[MAX_AMPSWITCHS] = {0, 1, 2, 3}; // Default: PC#0->ch1, PC#1->ch2, etc.
+#if MAX_AMPSWITCHS == 2
+uint8_t midiChannelMap[MAX_AMPSWITCHS] = {0, 1};
+#elif MAX_AMPSWITCHS == 3
+uint8_t midiChannelMap[MAX_AMPSWITCHS] = {0, 1, 2};
+#elif MAX_AMPSWITCHS == 4
+uint8_t midiChannelMap[MAX_AMPSWITCHS] = {0, 1, 2, 3};
+#else
+uint8_t midiChannelMap[MAX_AMPSWITCHS] = {0};
+#endif
 
 

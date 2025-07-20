@@ -31,29 +31,8 @@ unsigned int readingId = 0;
 Preferences nvs;
 
 void updatePairingLED() {
-  static uint16_t fadeValue = 0;
-  static int8_t fadeDirection = 1;
-
-  if (pairingStatus == PAIR_REQUEST) {
-    // Fade effect during Pairing mode only
-    fadeValue += fadeDirection * 50;
-    if (fadeValue >= 8191) {
-      fadeValue = 8191;
-      fadeDirection = -1;
-    } else if (fadeValue <= 0) {
-      fadeValue = 0;
-      fadeDirection = 1;
-    }
-    ledcWrite(LEDC_CHANNEL_0, fadeValue);
-  }
-  else if (serialOtaTrigger) {
-    // Digital blink every 250ms
-    digitalWrite(PAIRING_LED_PIN, (millis() / 250) % 2);
-  }
-  else {
-    ledcWrite(LEDC_CHANNEL_0, 0);    // LED off
-     digitalWrite(PAIRING_LED_PIN, LOW);
-  }
+  // This function is no longer used - LED control moved to updateStatusLED()
+  // Keeping this as a stub to avoid compilation errors
 }
 
 void clearPairingNVS() {
