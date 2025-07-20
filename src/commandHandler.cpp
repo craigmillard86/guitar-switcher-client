@@ -20,6 +20,8 @@
 #include "utils.h"
 #include <Preferences.h>
 
+unsigned long midiLearnStartTime = 0;
+
 void checkAmpChannelButtons() {
     // Skip button checking if disabled (when buttons aren't connected)
     if (!enableButtonChecking) {
@@ -51,6 +53,17 @@ void checkAmpChannelButtons() {
         midiLearnChordStart = 0;
     }
 
+    // Block all button actions during MIDI Learn lockout
+    if (midiLearnChannel >= 0) {
+        // Timeout check
+        if (millis() - midiLearnStartTime > MIDI_LEARN_TIMEOUT) {
+            log(LOG_WARN, "MIDI Learn timed out, exiting learn mode.");
+            midiLearnChannel = -1;
+            // Optionally: set LED pattern to indicate timeout
+        }
+        return;
+    }
+
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         uint8_t reading = digitalRead(ampButtonPins[i]);
         
@@ -65,6 +78,7 @@ void checkAmpChannelButtons() {
             if (midiLearnArmed && reading == LOW && !buttonPressed[i]) {
                 midiLearnChannel = i;
                 midiLearnArmed = false;
+                midiLearnStartTime = millis();
                 log(LOG_INFO, String("MIDI Learn: Waiting for MIDI PC for channel ") + String(i+1));
                 setStatusLedPattern(LED_TRIPLE_FLASH);
             }
@@ -85,19 +99,23 @@ void checkAmpChannelButtons() {
                 } else if (reading == HIGH && buttonPressed[i]) {
                     // Released
                     if (!button1LongPressHandled && (millis() - button1PressStart < longPressTime)) {
-                        log(LOG_INFO, "Button 1 short press: switching to channel 1");
-                        setAmpChannel(1);
+                        if (!midiLearnArmed) {
+                            log(LOG_INFO, "Button 1 short press: switching to channel 1");
+                            setAmpChannel(1);
+                        }
                     }
                     buttonPressed[i] = false;
                     button1LongPressHandled = false;
                 }
             } else {
-                // Other buttons: normal short press logic
+                // All other buttons: trigger on release
                 if (reading == LOW && !buttonPressed[i]) {
-                    log(LOG_INFO, "Button " + String(i + 1) + " pressed, switching to channel " + String(i + 1));
-                    setAmpChannel(i + 1);
-                    buttonPressed[i] = true; // Mark as pressed to prevent repeat
+                    buttonPressed[i] = true;
                 } else if (reading == HIGH && buttonPressed[i]) {
+                    if (!midiLearnArmed) {
+                        log(LOG_INFO, "Button " + String(i + 1) + " released, switching to channel " + String(i + 1));
+                        setAmpChannel(i + 1);
+                    }
                     buttonPressed[i] = false;
                 }
             }

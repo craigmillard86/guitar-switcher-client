@@ -159,6 +159,7 @@ void printPairingStatus() {
 
 // Enhanced serial command handling
 void checkSerialCommands() {
+    if (midiLearnChannel >= 0) return; // Block serial commands during MIDI Learn lockout
     if (Serial.available()) {
         String cmd = Serial.readStringUntil('\n');
         cmd.trim();
