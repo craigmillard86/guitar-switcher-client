@@ -93,7 +93,7 @@ void checkAmpChannelButtons() {
                 }
             } else {
                 // Other buttons: normal short press logic
-                if (reading == LOW && !buttonPressed[i] && currentAmpChannel != (i + 1)) {
+                if (reading == LOW && !buttonPressed[i]) {
                     log(LOG_INFO, "Button " + String(i + 1) + " pressed, switching to channel " + String(i + 1));
                     setAmpChannel(i + 1);
                     buttonPressed[i] = true; // Mark as pressed to prevent repeat

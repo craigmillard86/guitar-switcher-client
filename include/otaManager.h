@@ -15,3 +15,4 @@
 #include <Arduino.h>
 
 void startOTA();
+void startOTA_AP();

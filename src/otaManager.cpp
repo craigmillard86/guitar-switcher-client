@@ -67,3 +67,37 @@ void startOTA() {
   log(LOG_WARN, "OTA timeout reached, rebooting...");
   ESP.restart();
 }
+
+void startOTA_AP() {
+    // 1. Set AP IP address (optional, default is 192.168.4.1)
+    IPAddress apIP(192, 168, 4, 1);
+    IPAddress netMsk(255, 255, 255, 0);
+    WiFi.softAPConfig(apIP, apIP, netMsk);
+
+    // 2. Start Access Point
+    const char* ssid = "ESP32_OTA";
+    const char* password = "12345678"; // Optional, at least 8 chars for WPA2
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(ssid, password);
+
+    Serial.print("AP IP address: ");
+    Serial.println(WiFi.softAPIP()); // Should print 192.168.4.1
+
+    // 3. Start ElegantOTA
+    ElegantOTA.begin(&server);
+    server.begin();
+    Serial.println("ElegantOTA server started. Connect to the AP and go to http://192.168.4.1/update");
+    ElegantOTA.setAutoReboot(true);
+    // 4. Main OTA loop (blocks until timeout or reboot)
+    unsigned long start = millis();
+    const unsigned long TIMEOUT = 5 * 60 * 1000; // 5 minutes
+    while (millis() - start < TIMEOUT) {
+        server.handleClient();
+        ElegantOTA.loop();   // <-- Add this line!
+        updateStatusLED();   // If you want LED feedback
+        delay(10);
+    }
+
+    Serial.println("OTA timeout reached, rebooting...");
+    ESP.restart();
+}

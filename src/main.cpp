@@ -53,11 +53,9 @@ void setup() {
     log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
     log(LOG_INFO, "Board ID: " + String(BOARD_ID));
     
-    // Initialize status LED
-    pinMode(STATUS_LED_PIN, OUTPUT);
-    log(LOG_DEBUG, "Status LED initialized on pin " + String(STATUS_LED_PIN));
      
     // Setup pairing LED
+    pinMode(PAIRING_LED_PIN, OUTPUT);
     ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
     ledcAttachPin(PAIRING_LED_PIN, LEDC_CHANNEL_0);
     log(LOG_DEBUG, "Pairing LED initialized on pin " + String(PAIRING_LED_PIN));
@@ -112,7 +110,8 @@ void setup() {
 
     if (serialOtaTrigger) {
         log(LOG_INFO, "OTA mode triggered, starting OTA...");
-        startOTA();
+        updateStatusLED();
+        startOTA_AP();
         return;
     }
 
@@ -156,7 +155,7 @@ void setup() {
 void loop() {
     unsigned long loopStart = millis();
     
-    // Check for button presses and serial commands
+    // Always check for button presses and serial commands (regardless of pairing status)
     checkAmpChannelButtons();
     updateStatusLED(); // Replaces updatePairingLED()
     checkSerialCommands();
@@ -164,10 +163,10 @@ void loop() {
     // Process MIDI messages
     MIDI.read();
 
-    // Handle pairing if not paired
+    // Handle pairing if not paired (but don't return early)
     if (pairingStatus != PAIR_PAIRED) {
         autoPairing();
-        return; // Don't try to send data if not paired!
+        // Don't return early - continue with the rest of the loop
     }
     
     // Update performance metrics
