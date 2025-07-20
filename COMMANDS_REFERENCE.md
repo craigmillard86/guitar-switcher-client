@@ -2,6 +2,13 @@
 
 > **Note:** The available commands, channel numbers, and button numbers depend on the build-time configuration (e.g., CLIENT_TYPE, MAX_AMPSWITCHS, pin assignments) set in platformio.ini and config.h. Use the `config` or `pins` command to see your current build configuration and all runtime pin assignments.
 
+## OTA Updates (Access Point + ElegantOTA)
+
+- OTA is now performed by starting the ESP32 as an Access Point (SSID: `ESP32_OTA`, password: `12345678`, IP: `192.168.4.1`).
+- Use the serial command `ota` (or hold Button 1 for 5s during boot) to enter OTA mode.
+- Connect to the AP and go to [http://192.168.4.1/update](http://192.168.4.1/update) to upload new firmware.
+- OTA mode is available for 5 minutes per session. The status LED will indicate OTA mode (fast blink).
+
 ## Essential Commands
 
 | Command | Description |
