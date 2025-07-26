@@ -78,13 +78,26 @@ platformio run -e client-custom-amp
 
 > **Note:** GPIO 8 is reserved for the status/pairing LED. Do **not** use GPIO 8 for relays or switches to avoid conflicts.
 
-## Button 1 Special Functions (Unified Logic)
-- **Channel Select Mode:** Hold Button 1 for 15 seconds to enter channel select mode (works for both single and multi-button modes).
-- **Increment MIDI Channel:** While in channel select mode, each press of Button 1 increments the MIDI channel (cycles 1-16), and the LED flashes the selected channel number after each press.
-- **Pairing Mode:** Hold Button 1 for 30 seconds to enter pairing mode.
-- **MIDI Learn:** Double long-press (5s, release, 5s) on Button 1 to enter MIDI Learn mode (single-button mode).
-- **Relay Toggle:** Short press (<5s) toggles the relay ON/OFF (single-button mode).
-- **LED Feedback:** Button 1 provides milestone LED feedback at 5s, 10s, 15s, 20s, and 25s during long presses.
+## Button 1 Functions (Unified Logic)
+
+| Action                        | When                                 | Result                                                                                 |
+|-------------------------------|--------------------------------------|----------------------------------------------------------------------------------------|
+| **Short press (<5s)**         | Any time (single-button mode)        | Toggle relay ON/OFF                                                                    |
+| **Short press (<5s)**         | Any time (multi-button mode)         | Switch to channel 1                                                                    |
+| **15s long press**            | Any time                             | Enter channel select mode (both modes)                                                 |
+| **Press in channel select**   | While in channel select mode         | Increment MIDI channel (cycles 1-16), LED flashes selected channel number              |
+| **30s long press**            | Any time                             | Enter pairing mode                                                                     |
+| **Double long press (5s, release, 5s)** | Any time (single-button mode) | Enter MIDI Learn mode                                                                  |
+| **Long press (5s during setup window)** | First 10s after boot          | Enter OTA mode                                                                         |
+| **Long press milestones**     | Any time                             | LED flashes at 5s, 10s, 15s, 20s, 25s to provide timing feedback                       |
+
+### Summary of Key Changes
+- Channel select mode is now entered with a 15s hold, and works in both single and multi-button modes.
+- Relay toggle on short press is only for single-button mode; in multi-button mode, short press switches to channel 1.
+- Pairing mode is now a 30s hold.
+- MIDI Learn is a double long-press (single-button mode only).
+- OTA mode is a 5s long press during the setup window (first 10s after boot).
+- LED feedback is unified and milestone-based.
 
 ### Supported Configurations
 
