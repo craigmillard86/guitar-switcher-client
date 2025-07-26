@@ -34,6 +34,7 @@ uint8_t currentChannel = 4;
 uint8_t ampSwitchPins[MAX_AMPSWITCHS] = {0}; // Will be set at runtime
 uint8_t ampButtonPins[MAX_AMPSWITCHS] = {0}; // Will be set at runtime
 uint8_t currentAmpChannel = 0; // No channel active at startup
+uint8_t currentMidiChannel = 1; // Default MIDI channel
 
 // Button control flag - set to false when buttons aren't connected
 bool enableButtonChecking = true;

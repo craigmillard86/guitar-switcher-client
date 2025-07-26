@@ -213,6 +213,28 @@ All persistent settings (pairing info, log level, MIDI mapping) are stored in NV
 
 If you see a warning about an NVS version mismatch, the device has reset that setting to defaults for safety.
 
+## Channel Select Mode (Unified Logic)
+
+- **Entry:** Hold Button 1 for 15 seconds to enter channel select mode (works for both single and multi-button modes).
+- **While in channel select mode:**
+  - Each press of Button 1 increments the MIDI channel selection (cycles 1-16).
+  - The LED flashes the number of times corresponding to the currently selected channel after each press.
+  - No relay toggling or other actions occur while in channel select mode.
+- **Auto-save:** After 10 seconds of inactivity, the selected channel is saved to NVS and the LED flashes the selected channel number as confirmation.
+- **Exit:** Channel select mode exits automatically after auto-save.
+
+### Example Flow
+1. Hold Button 1 for 15s → Channel select mode active (LED fades)
+2. Press Button 1 three times → LED flashes 3 times after each press (channel 3 selected)
+3. Wait 10s → Channel 3 is saved, LED flashes 3 times as confirmation
+
+## LED Feedback (Milestone Tracking)
+- The LED flashes once at each 5s, 10s, 15s, 20s, and 25s milestone during a long press, providing clear timing feedback.
+- This logic is now shared for both single and multi-button modes.
+
+## Codebase Optimization
+- The channel select and LED feedback logic is now unified and shared between single and multi-button modes, reducing code duplication and improving maintainability.
+
 ## Troubleshooting
 
 - **Pins or config command does not match your expected configuration:**  

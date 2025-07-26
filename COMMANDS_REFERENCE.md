@@ -234,6 +234,16 @@ All persistent settings (pairing info, log level, MIDI mapping) are stored in NV
 
 If you see a warning about an NVS version mismatch, the device has reset that setting to defaults for safety.
 
+## Channel Select Mode (Unified)
+- **Enter:** Hold Button 1 for 15 seconds.
+- **Select:** Each press of Button 1 increments the MIDI channel (cycles 1-16), LED flashes the selected channel number after each press.
+- **Auto-save:** After 10 seconds of inactivity, the selected channel is saved and the LED flashes the selected channel number as confirmation.
+- **Exit:** Channel select mode exits automatically after auto-save.
+
+## LED Feedback
+- LED flashes once at each 5s, 10s, 15s, 20s, and 25s milestone during a long press.
+- This logic is now shared for both single and multi-button modes.
+
 ## Build Configurations
 
 Available build environments:
