@@ -78,12 +78,13 @@ platformio run -e client-custom-amp
 
 > **Note:** GPIO 8 is reserved for the status/pairing LED. Do **not** use GPIO 8 for relays or switches to avoid conflicts.
 
-**Button 1 (amp channel 1 button) now has multiple functions:**
-- **Short press (<5s):** Switch to channel 1
-- **Long press (>5s):** Enter pairing mode (after setup window)
-- **Long press during setup (hold for 5s within first 10s after boot):** Enter OTA mode
-
-> **Note:** There is no longer a dedicated OTA button. OTA mode can only be triggered by serial command (`ota`) or by holding Button 1 for 5 seconds during the setup window after boot.
+## Button 1 Special Functions (Unified Logic)
+- **Channel Select Mode:** Hold Button 1 for 15 seconds to enter channel select mode (works for both single and multi-button modes).
+- **Increment MIDI Channel:** While in channel select mode, each press of Button 1 increments the MIDI channel (cycles 1-16), and the LED flashes the selected channel number after each press.
+- **Pairing Mode:** Hold Button 1 for 30 seconds to enter pairing mode.
+- **MIDI Learn:** Double long-press (5s, release, 5s) on Button 1 to enter MIDI Learn mode (single-button mode).
+- **Relay Toggle:** Short press (<5s) toggles the relay ON/OFF (single-button mode).
+- **LED Feedback:** Button 1 provides milestone LED feedback at 5s, 10s, 15s, 20s, and 25s during long presses.
 
 ### Supported Configurations
 
