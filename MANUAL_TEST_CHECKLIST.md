@@ -258,6 +258,19 @@
 
 ---
 
+## Channel Select Mode (Unified)
+- [ ] Hold Button 1 for 15 seconds. LED should fade to indicate channel select mode is active.
+- [ ] Press Button 1 repeatedly. Each press increments the MIDI channel (cycles 1-16), and the LED flashes the selected channel number after each press.
+- [ ] No relay toggling or other actions should occur while in channel select mode.
+- [ ] Wait 10 seconds without pressing any button. The selected channel should be saved, and the LED should flash the selected channel number as confirmation.
+- [ ] Channel select mode should exit automatically after auto-save.
+
+## LED Feedback (Milestone Tracking)
+- [ ] During any long press, the LED should flash once at each 5s, 10s, 15s, 20s, and 25s milestone.
+- [ ] This feedback should work identically in both single and multi-button modes.
+
+---
+
 # Test Completion Checklist
 
 - [ ] **Boot & Serial Output**

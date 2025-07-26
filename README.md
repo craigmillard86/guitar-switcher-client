@@ -78,12 +78,26 @@ platformio run -e client-custom-amp
 
 > **Note:** GPIO 8 is reserved for the status/pairing LED. Do **not** use GPIO 8 for relays or switches to avoid conflicts.
 
-**Button 1 (amp channel 1 button) now has multiple functions:**
-- **Short press (<5s):** Switch to channel 1
-- **Long press (>5s):** Enter pairing mode (after setup window)
-- **Long press during setup (hold for 5s within first 10s after boot):** Enter OTA mode
+## Button 1 Functions (Unified Logic)
 
-> **Note:** There is no longer a dedicated OTA button. OTA mode can only be triggered by serial command (`ota`) or by holding Button 1 for 5 seconds during the setup window after boot.
+| Action                        | When                                 | Result                                                                                 |
+|-------------------------------|--------------------------------------|----------------------------------------------------------------------------------------|
+| **Short press (<5s)**         | Any time (single-button mode)        | Toggle relay ON/OFF                                                                    |
+| **Short press (<5s)**         | Any time (multi-button mode)         | Switch to channel 1                                                                    |
+| **15s long press**            | Any time                             | Enter channel select mode (both modes)                                                 |
+| **Press in channel select**   | While in channel select mode         | Increment MIDI channel (cycles 1-16), LED flashes selected channel number              |
+| **30s long press**            | Any time                             | Enter pairing mode                                                                     |
+| **Double long press (5s, release, 5s)** | Any time (single-button mode) | Enter MIDI Learn mode                                                                  |
+| **Long press (5s during setup window)** | First 10s after boot          | Enter OTA mode                                                                         |
+| **Long press milestones**     | Any time                             | LED flashes at 5s, 10s, 15s, 20s, 25s to provide timing feedback                       |
+
+### Summary of Key Changes
+- Channel select mode is now entered with a 15s hold, and works in both single and multi-button modes.
+- Relay toggle on short press is only for single-button mode; in multi-button mode, short press switches to channel 1.
+- Pairing mode is now a 30s hold.
+- MIDI Learn is a double long-press (single-button mode only).
+- OTA mode is a 5s long press during the setup window (first 10s after boot).
+- LED feedback is unified and milestone-based.
 
 ### Supported Configurations
 
@@ -137,13 +151,6 @@ platformio run -e client-custom-amp
 | `setlogN` | Set log level (N=0-4) |
 | `clearlog` | Clear saved log level |
 | `clearall` | Clear all NVS data |
-
-### Button 1 Functions
-| Action | When | Result |
-|--------|------|--------|
-| Short press (<5s) | Any time | Switch to channel 1 |
-| Long press (>5s) | After setup window | Enter pairing mode |
-| Long press (>5s) | During setup window (first 10s after boot) | Enter OTA mode |
 
 ### Test Commands
 | Command | Description |
@@ -212,6 +219,28 @@ All persistent settings (pairing info, log level, MIDI mapping) are stored in NV
 - MIDI Program Change mapping
 
 If you see a warning about an NVS version mismatch, the device has reset that setting to defaults for safety.
+
+## Channel Select Mode (Unified Logic)
+
+- **Entry:** Hold Button 1 for 15 seconds to enter channel select mode (works for both single and multi-button modes).
+- **While in channel select mode:**
+  - Each press of Button 1 increments the MIDI channel selection (cycles 1-16).
+  - The LED flashes the number of times corresponding to the currently selected channel after each press.
+  - No relay toggling or other actions occur while in channel select mode.
+- **Auto-save:** After 10 seconds of inactivity, the selected channel is saved to NVS and the LED flashes the selected channel number as confirmation.
+- **Exit:** Channel select mode exits automatically after auto-save.
+
+### Example Flow
+1. Hold Button 1 for 15s → Channel select mode active (LED fades)
+2. Press Button 1 three times → LED flashes 3 times after each press (channel 3 selected)
+3. Wait 10s → Channel 3 is saved, LED flashes 3 times as confirmation
+
+## LED Feedback (Milestone Tracking)
+- The LED flashes once at each 5s, 10s, 15s, 20s, and 25s milestone during a long press, providing clear timing feedback.
+- This logic is now shared for both single and multi-button modes.
+
+## Codebase Optimization
+- The channel select and LED feedback logic is now unified and shared between single and multi-button modes, reducing code duplication and improving maintainability.
 
 ## Troubleshooting
 

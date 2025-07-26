@@ -75,5 +75,6 @@ extern volatile int ledPatternStep;
 extern bool midiLearnArmed;
 extern int midiLearnChannel;
 extern uint8_t midiChannelMap[MAX_AMPSWITCHS];
+extern uint8_t currentMidiChannel;
 
 extern const unsigned long MIDI_LEARN_TIMEOUT; // 30 seconds
