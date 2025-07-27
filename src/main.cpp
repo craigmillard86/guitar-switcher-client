@@ -28,6 +28,7 @@
 #include <espnow.h>
 #include <MIDI.h>
 #include <commandHandler.h>
+#include "nvsManager.h"
 #include "debug.h"
 
 MessageType messageType;

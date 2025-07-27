@@ -11,18 +11,25 @@
 //
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #pragma once
-#include "dataStructs.h"
 #include <Arduino.h>
-#include <globals.h>
+#include "debug.h"
 
-extern unsigned long currentMillis;
-extern unsigned long previousMillis;   // Stores last time temperature was published
-extern const long interval;        // Interval at which to publish sensor readings
-extern unsigned long start;                // used to measure Pairing time
-extern unsigned int readingId;  
+// MIDI channel map management
+void saveMidiMapToNVS();
+void loadMidiMapFromNVS();
 
-void startPairing();
-void updatePairingLED();
-PairingStatus autoPairing();
-void addPeer(const uint8_t * mac_addr, uint8_t chan);
+// MIDI channel management  
+void saveMidiChannelToNVS();
+void loadMidiChannelFromNVS();
+
+// Log level management
+void saveLogLevelToNVS(LogLevel level);
+LogLevel loadLogLevelFromNVS();
+void clearLogLevelNVS();
+
+// ESP-NOW pairing management
+void saveServerToNVS(const uint8_t* mac, uint8_t channel);
+bool loadServerFromNVS(uint8_t* mac, uint8_t* channel);
+void clearPairingNVS();

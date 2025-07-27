@@ -19,59 +19,13 @@
 #include <esp_system.h>
 #include <esp_heap_caps.h>
 #include "debug.h"
-#include <Preferences.h>
+#include "nvsManager.h"
 
 extern unsigned long lastMemoryCheck;
 
 // Global variables for memory tracking
 uint32_t minFreeHeap = UINT32_MAX;
 // unsigned long lastMemoryCheck = 0; // Removed to avoid multiple definition
-
-// NVS functions for log level persistence
-void saveLogLevelToNVS(LogLevel level) {
-    Preferences nvs;
-    if (nvs.begin("logging", false)) {
-        nvs.putUChar("log_level", (uint8_t)level);
-        nvs.putInt("version", STORAGE_VERSION);
-        nvs.end();
-        log(LOG_DEBUG, "Log level saved to NVS: " + String((uint8_t)level) + " (version " + String(STORAGE_VERSION) + ")");
-    } else {
-        log(LOG_ERROR, "Failed to save log level to NVS");
-    }
-}
-
-LogLevel loadLogLevelFromNVS() {
-    Preferences nvs;
-    LogLevel level = LOG_INFO; // Default level
-    if (nvs.begin("logging", true)) {
-        // Check storage version
-        if (nvs.getInt("version", 0) != STORAGE_VERSION) {
-            log(LOG_WARN, "Incorrect logging NVS version, using default log level");
-            nvs.end();
-            return level;
-        }
-        
-        uint8_t savedLevel = nvs.getUChar("log_level", LOG_INFO);
-        level = (LogLevel)savedLevel;
-        nvs.end();
-        log(LOG_DEBUG, "Log level loaded from NVS: " + String((uint8_t)level) + " (version " + String(STORAGE_VERSION) + ")");
-    } else {
-        log(LOG_WARN, "Failed to load log level from NVS, using default");
-    }
-    return level;
-}
-
-void clearLogLevelNVS() {
-    Preferences nvs;
-    if (nvs.begin("logging", false)) {
-        nvs.clear();
-        nvs.putInt("version", STORAGE_VERSION);
-        nvs.end();
-        log(LOG_INFO, "Log level NVS cleared");
-    } else {
-        log(LOG_ERROR, "Failed to clear log level NVS");
-    }
-}
 
 // Enhanced logging with timestamps and proper log levels
 void log(LogLevel level, const String& msg) {
@@ -418,7 +372,7 @@ uint32_t getMinFreeHeap() {
 
 void setStatusLedPattern(StatusLedPattern pattern) {
     // If pairing or OTA mode is active, ignore other patterns
-    if (pairingStatus == PAIR_REQUEST) {
+    if (pairingStatus == PAIR_REQUEST || pairingStatus == PAIR_REQUESTED) {
         currentLedPattern = LED_FADE;
         return;
     }
@@ -439,10 +393,19 @@ void updateStatusLED() {
     static unsigned long lastFadeUpdate = 0;
     unsigned long now = millis();
 
-    if (pairingStatus == PAIR_REQUEST) {
-        currentLedPattern = LED_FADE;
+    // Only override patterns during active pairing phases, not when paired
+    if (pairingStatus == PAIR_REQUEST || pairingStatus == PAIR_REQUESTED) {
+        if (currentLedPattern != LED_FADE) {
+            currentLedPattern = LED_FADE;
+            ledPatternStart = now;
+            ledPatternStep = 0;
+        }
     } else if (serialOtaTrigger) {
-        currentLedPattern = LED_FAST_BLINK;
+        if (currentLedPattern != LED_FAST_BLINK) {
+            currentLedPattern = LED_FAST_BLINK;
+            ledPatternStart = now;
+            ledPatternStep = 0;
+        }
     }
 
     switch (currentLedPattern) {
@@ -512,7 +475,8 @@ void updateStatusLED() {
             }
             break;
         case LED_OFF:
-        ledcWrite(LEDC_CHANNEL_0, 0);
-        break;
+        default:
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            break;
     }
 }

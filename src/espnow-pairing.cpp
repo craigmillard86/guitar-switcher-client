@@ -18,7 +18,7 @@
 #include "espnow-pairing.h"
 #include "globals.h"
 #include "utils.h"
-#include <Preferences.h>
+#include "nvsManager.h"
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include <espnow.h>
@@ -28,66 +28,10 @@ unsigned long previousMillis = 0;   // Stores last time temperature was publishe
 const long interval = 10000;        // Interval at which to publish sensor readings
 unsigned long start;                // used to measure Pairing time
 unsigned int readingId = 0;   
-Preferences nvs;
 
 void updatePairingLED() {
   // This function is no longer used - LED control moved to updateStatusLED()
   // Keeping this as a stub to avoid compilation errors
-}
-
-void clearPairingNVS() {
-    nvs.begin(NVS_NAMESPACE, false);
-    nvs.clear();
-    nvs.putInt("version", STORAGE_VERSION);
-    nvs.end();
-    log(LOG_INFO, "Pairing info cleared from NVS");
-}
-
-void saveServerToNVS(const uint8_t* mac, uint8_t channel) {
-    Preferences nvs;
-    log(LOG_DEBUG, "Saving server info to NVS...");
-    if (nvs.begin(NVS_NAMESPACE, false)) {
-        nvs.putBytes("server_mac", mac, 6);
-        nvs.putUChar("channel", channel);
-        nvs.putInt("version", STORAGE_VERSION);
-        log(LOG_INFO, "Server info saved to NVS:");
-        printMAC(mac, LOG_INFO);
-        log(LOG_INFO, "Channel: " + String(channel));
-        nvs.end();
-    } else {
-        log(LOG_ERROR, "Failed to open NVS for writing!");
-    }
-}
-
-bool loadServerFromNVS(uint8_t* mac, uint8_t* channel) {
-    Preferences nvs;
-    log(LOG_DEBUG, "Loading server info from NVS...");
-    bool success = false;
-    if (nvs.begin(NVS_NAMESPACE, true)) {
-        if (nvs.getInt("version", 0) != STORAGE_VERSION) {
-            log(LOG_WARN, "Incorrect NVS version, resetting NVS");
-            nvs.end();
-            clearPairingNVS();
-            nvs.begin(NVS_NAMESPACE, false);
-            nvs.putInt("version", STORAGE_VERSION);
-            nvs.end();
-            return success;
-        }
-        if (nvs.getBytesLength("server_mac") == 6) {
-            nvs.getBytes("server_mac", mac, 6);
-            *channel = nvs.getUChar("channel", 1);
-            log(LOG_INFO, "Server info loaded from NVS:");
-            printMAC(mac, LOG_INFO);
-            log(LOG_INFO, "Channel: " + String(*channel));
-            success = true;
-        } else {
-            log(LOG_DEBUG, "No server MAC found in NVS");
-        }
-        nvs.end();
-    } else {
-        log(LOG_ERROR, "Failed to open NVS for reading!");
-    }
-    return success;
 }
 
 void addPeer(const uint8_t* mac_addr, uint8_t chan) {
