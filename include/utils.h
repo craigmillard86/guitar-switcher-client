@@ -43,16 +43,8 @@ String getUptimeString();
 uint32_t getFreeHeap();
 uint32_t getMinFreeHeap();
 
-// NVS functions for log level persistence
-void saveLogLevelToNVS(LogLevel level);
-LogLevel loadLogLevelFromNVS();
-void clearLogLevelNVS();
-
 // Client configuration functions
 void printClientConfiguration();
 
 void setStatusLedPattern(StatusLedPattern pattern);
 void updateStatusLED();
-
-void saveMidiMapToNVS();
-void loadMidiMapFromNVS();

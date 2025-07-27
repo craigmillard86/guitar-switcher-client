@@ -18,9 +18,12 @@
 #include "globals.h"
 #include "espnow-pairing.h"
 #include "utils.h"
-#include <Preferences.h>
+#include "nvsManager.h"
 
 unsigned long midiLearnStartTime = 0;
+static bool midiLearnJustTimedOut = false; // Flag to prevent pairing mode after MIDI Learn timeout
+static unsigned long midiLearnCompleteTime = 0; // Time when MIDI Learn completed
+static const unsigned long MIDI_LEARN_COOLDOWN = 2000; // 2 second cooldown after MIDI Learn
 
 // Shared variables for both modes
 static unsigned long lastLedFlash = 0;
@@ -124,28 +127,11 @@ void checkAmpChannelButtons() {
     static unsigned long lastDebounceTime[MAX_AMPSWITCHS] = {0};
     static uint8_t lastButtonState[MAX_AMPSWITCHS] = {HIGH};
     static bool buttonPressed[MAX_AMPSWITCHS] = {false};
-    static unsigned long button1PressStart = 0;
-    static bool button1LongPressHandled = false;
+    static unsigned long buttonPressStart[MAX_AMPSWITCHS] = {0};
+    static bool buttonLongPressHandled[MAX_AMPSWITCHS] = {false};
     const unsigned long debounceDelay = BUTTON_DEBOUNCE_MS;
     const unsigned long longPressTime = BUTTON_LONGPRESS_MS;
-
-#if MAX_AMPSWITCHS > 1
-    // MIDI Learn chord detection (multi-button only)
-    static unsigned long midiLearnChordStart = 0;
-    bool b1 = (digitalRead(ampButtonPins[0]) == LOW);
-    bool b2 = (digitalRead(ampButtonPins[1]) == LOW);
-    const unsigned long midiLearnChordTime = 2000; // 2 seconds
-
-    if (b1 && b2) {
-        if (midiLearnChordStart == 0) midiLearnChordStart = millis();
-        if (!midiLearnArmed && (millis() - midiLearnChordStart > midiLearnChordTime)) {
-            midiLearnArmed = true;
-            log(LOG_INFO, "MIDI Learn mode armed. Release and press a channel button to select.");
-            setStatusLedPattern(LED_FAST_BLINK);
-        }
-    } else {
-        midiLearnChordStart = 0;
-    }
+    const unsigned long midiLearnActivationTime = 10000; // 10 seconds for MIDI Learn
 
     // Block all button actions during MIDI Learn lockout
     if (midiLearnChannel >= 0) {
@@ -154,195 +140,115 @@ void checkAmpChannelButtons() {
             log(LOG_WARN, "MIDI Learn timed out, exiting learn mode.");
             midiLearnArmed = false;
             midiLearnChannel = -1;
-        }
-        return;
-    }
-#endif
-
-#if MAX_AMPSWITCHS == 1
-    // Single-button mode logic
-    static unsigned long midiLearnArmedStart = 0;
-    if (midiLearnArmed) {
-        if (midiLearnArmedStart == 0) {
-            midiLearnArmedStart = millis();
-        }
-        if (millis() - midiLearnArmedStart > MIDI_LEARN_TIMEOUT) {
-            midiLearnArmed = false;
-            midiLearnArmedStart = 0;
-            log(LOG_WARN, "MIDI Learn timed out, exiting learn mode.");
+            midiLearnJustTimedOut = true; // Set flag to prevent pairing mode trigger
             setStatusLedPattern(LED_OFF);
-            buttonPressed[0] = false;
+            
+            // Reset button states to prevent triggering pairing mode on release
+            for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+                buttonLongPressHandled[i] = true; // Mark as handled to prevent further actions
+            }
         }
         return;
-    } else {
-        midiLearnArmedStart = 0;
     }
-    
-    uint8_t reading = digitalRead(ampButtonPins[0]);
-    static unsigned long buttonPressStart = 0;
-    static bool buttonLongPressHandled = false;
-    static bool midiLearnFirstLong = false;
-    static unsigned long midiLearnWindowStart = 0;
-    const unsigned long midiLearnWindow = 2000;
 
-    if (reading != lastButtonState[0]) {
-        lastDebounceTime[0] = millis();
-    }
-    if ((millis() - lastDebounceTime[0]) > debounceDelay) {
-        if (reading == LOW && !buttonPressed[0]) {
-            buttonPressStart = millis();
-            buttonPressed[0] = true;
-            buttonLongPressHandled = false;
-            ledFlashed = false;
-            lastLedFlash = 0;
-            resetMilestoneFlags();
-        } else if (reading == LOW && buttonPressed[0]) {
-            unsigned long held = millis() - buttonPressStart;
-            
-            // Shared LED feedback
-            handleLedFeedback(held, "Button 1");
-            
-            // Channel Select Mode (15s hold)
-            if (!buttonLongPressHandled && held >= 15000) {
-                enterChannelSelectMode();
-                buttonLongPressHandled = true;
-                midiLearnFirstLong = false;
-            }
-            // Pairing mode (30s hold)
-            else if (!buttonLongPressHandled && held >= 30000) {
-                clearPairingNVS();
-                pairingStatus = NOT_PAIRED;
-                log(LOG_INFO, "30s long press: Pairing mode triggered!");
-                buttonLongPressHandled = true;
-                midiLearnFirstLong = false;
-                channelSelectMode = false;
-            }
-        } else if (reading == HIGH && buttonPressed[0]) {
-            unsigned long held = millis() - buttonPressStart;
-            
-            if (!buttonLongPressHandled) {
-                if (channelSelectMode) {
-                    handleChannelSelection();
-                }
-                else if (midiLearnFirstLong) {
-                    // This is the second long press for MIDI Learn
-                    if (held >= 5000 && held < 10000) {
-                        midiLearnArmed = true;
-                        midiLearnChannel = 0;
-                        log(LOG_INFO, "Double long press: MIDI Learn mode armed for single channel.");
-                        setStatusLedPattern(LED_FAST_BLINK);
-                    } else {
-                        log(LOG_INFO, "Second long press too short/too long, MIDI Learn not armed.");
-                    }
-                    midiLearnFirstLong = false;
-                } else if (held >= 5000 && held < 10000) {
-                    // First long press for MIDI Learn, start window
-                    midiLearnFirstLong = true;
-                    midiLearnWindowStart = millis();
-                    log(LOG_INFO, "First long press detected, waiting for second long press for MIDI Learn...");
-                } else if (held < 5000) {
-                    // Only toggle relay if NOT in channel select mode
-                    if (!channelSelectMode) {
-                        if (currentAmpChannel == 1) {
-                            setAmpChannel(0);
-                            log(LOG_INFO, "Toggled relay OFF");
-                        } else {
-                            setAmpChannel(1);
-                            log(LOG_INFO, "Toggled relay ON");
-                        }
-                    }
-                }
-            }
-            buttonPressed[0] = false;
-            buttonLongPressHandled = false;
-            resetMilestoneFlags();
-        }
-        
-        // Shared auto-save logic
-        handleChannelSelectAutoSave();
-        
-        // Cancel MIDI Learn window if time expires
-        if (midiLearnFirstLong && !buttonPressed[0] && (millis() - midiLearnWindowStart > midiLearnWindow)) {
-            midiLearnFirstLong = false;
-            log(LOG_INFO, "MIDI Learn double long press window expired.");
-        }
-    }
-    lastButtonState[0] = reading;
-
-#else
-    // Multi-button mode logic
+    // Unified button processing for all buttons
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         uint8_t reading = digitalRead(ampButtonPins[i]);
         
-        // Only process if button state changed
+        // Debounce check
         if (reading != lastButtonState[i]) {
             lastDebounceTime[i] = millis();
         }
         
-        // Check if enough time has passed since last change
         if ((millis() - lastDebounceTime[i]) > debounceDelay) {
-            // MIDI Learn channel select
-            if (midiLearnArmed && reading == LOW && !buttonPressed[i]) {
-                midiLearnChannel = i;
-                midiLearnArmed = false;
-                midiLearnStartTime = millis();
-                log(LOG_INFO, String("MIDI Learn: Waiting for MIDI PC for channel ") + String(i+1));
-                setStatusLedPattern(LED_TRIPLE_FLASH);
-            }
-            
-            if (i == 0) { // Button 1: support long press for pairing
-                if (reading == LOW && !buttonPressed[i]) {
-                    button1PressStart = millis();
-                    buttonPressed[i] = true;
-                    button1LongPressHandled = false;
+            // Button pressed
+            if (reading == LOW && !buttonPressed[i]) {
+                buttonPressStart[i] = millis();
+                buttonPressed[i] = true;
+                buttonLongPressHandled[i] = false;
+                if (i == 0) { // Only button 1 gets LED feedback
                     ledFlashed = false;
                     lastLedFlash = 0;
                     resetMilestoneFlags();
-                } else if (reading == LOW && buttonPressed[i]) {
-                    unsigned long held = millis() - button1PressStart;
-                    
-                    // Shared LED feedback
+                }
+                
+                // Multi-button MIDI Learn channel selection
+                #if MAX_AMPSWITCHS > 1
+                if (midiLearnArmed) {
+                    midiLearnChannel = i;
+                    midiLearnArmed = false;
+                    midiLearnStartTime = millis();
+                    log(LOG_INFO, String("MIDI Learn: Waiting for MIDI PC for channel ") + String(i+1));
+                    setStatusLedPattern(LED_TRIPLE_FLASH);
+                }
+                #endif
+            }
+            // Button held
+            else if (reading == LOW && buttonPressed[i]) {
+                unsigned long held = millis() - buttonPressStart[i];
+                
+                // Only button 1 supports long press functions
+                if (i == 0) {
+                    // LED feedback for button 1
                     handleLedFeedback(held, "Button 1");
-                    
-                    // Channel Select Mode (15s hold)
-                    if (!button1LongPressHandled && held >= 15000) {
-                        enterChannelSelectMode();
-                        button1LongPressHandled = true;
-                    }
-                    // Pairing mode (30s hold)
-                    else if (!button1LongPressHandled && held >= 30000) {
+                }
+            }
+            // Button released
+            else if (reading == HIGH && buttonPressed[i]) {
+                unsigned long held = millis() - buttonPressStart[i];
+                
+                if (!buttonLongPressHandled[i]) {
+                    if (channelSelectMode) {
+                        handleChannelSelection();
+                    } else if (held >= 30000 && !midiLearnJustTimedOut) {
+                        // Pairing mode (30s+ hold released) - but not if MIDI Learn just timed out
                         clearPairingNVS();
                         pairingStatus = NOT_PAIRED;
-                        log(LOG_INFO, "30s long press: Pairing mode triggered!");
-                        button1LongPressHandled = true;
+                        log(LOG_INFO, "30s+ hold released: Pairing mode triggered!");
                         channelSelectMode = false;
-                    }
-                } else if (reading == HIGH && buttonPressed[i]) {
-                    // Released
-                    if (!button1LongPressHandled) {
-                        if (channelSelectMode) {
-                            handleChannelSelection();
-                        } else if (millis() - button1PressStart < longPressTime) {
-                            if (!midiLearnArmed) {
-                                log(LOG_INFO, "Button 1 short press: switching to channel 1");
+                    } else if (held >= 15000) {
+                        // Channel Select Mode (15s+ hold released)
+                        enterChannelSelectMode();
+                    } else if (held >= midiLearnActivationTime) {
+                        // MIDI Learn mode (10s+ hold released) - unified for both single and multi-button
+                        midiLearnArmed = true;
+                        #if MAX_AMPSWITCHS == 1
+                        midiLearnChannel = 0; // Single channel device - start learning immediately
+                        midiLearnStartTime = millis();
+                        log(LOG_INFO, "10s+ hold released: MIDI Learn mode armed for single channel.");
+                        #else
+                        log(LOG_INFO, "10s+ hold released: MIDI Learn mode armed. Press a channel button to select.");
+                        #endif
+                        setStatusLedPattern(LED_FAST_BLINK);
+                    } else if (held < longPressTime) {
+                        // Short press handling
+                        // Check cooldown period after MIDI Learn completion
+                        if (midiLearnCompleteTime > 0 && (millis() - midiLearnCompleteTime < MIDI_LEARN_COOLDOWN)) {
+                            log(LOG_DEBUG, "Button press ignored during post-learn cooldown period");
+                        } else if (!midiLearnArmed) {
+                            #if MAX_AMPSWITCHS == 1
+                            // Single button: toggle relay
+                            if (currentAmpChannel == 1) {
+                                setAmpChannel(0);
+                                log(LOG_INFO, "Toggled relay OFF");
+                            } else {
                                 setAmpChannel(1);
+                                log(LOG_INFO, "Toggled relay ON");
                             }
+                            #else
+                            // Multi-button: switch to specific channel
+                            log(LOG_INFO, "Button " + String(i + 1) + " short press: switching to channel " + String(i + 1));
+                            setAmpChannel(i + 1);
+                            #endif
                         }
                     }
-                    buttonPressed[i] = false;
-                    button1LongPressHandled = false;
-                    resetMilestoneFlags();
                 }
-            } else {
-                // All other buttons: trigger on release (no LED feedback)
-                if (reading == LOW && !buttonPressed[i]) {
-                    buttonPressed[i] = true;
-                } else if (reading == HIGH && buttonPressed[i]) {
-                    if (!midiLearnArmed) {
-                        log(LOG_INFO, "Button " + String(i + 1) + " released, switching to channel " + String(i + 1));
-                        setAmpChannel(i + 1);
-                    }
-                    buttonPressed[i] = false;
+                
+                buttonPressed[i] = false;
+                buttonLongPressHandled[i] = false;
+                midiLearnJustTimedOut = false; // Reset flag when any button is released
+                if (i == 0) {
+                    resetMilestoneFlags();
                 }
             }
         }
@@ -351,7 +257,6 @@ void checkAmpChannelButtons() {
     
     // Shared auto-save logic
     handleChannelSelectAutoSave();
-#endif
 }
 
 void handleCommand(uint8_t commandType, uint8_t value) {
@@ -368,87 +273,39 @@ void handleCommand(uint8_t commandType, uint8_t value) {
     }
 }
 
-void saveMidiMapToNVS() {
-    Preferences nvs;
-    if (nvs.begin("midi_map", false)) {
-        nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
-        nvs.putInt("version", STORAGE_VERSION);
-        nvs.end();
-        log(LOG_INFO, "MIDI channel map saved to NVS");
-    }
-}
-
-void loadMidiMapFromNVS() {
-    Preferences nvs;
-    if (nvs.begin("midi_map", true)) {
-        if (nvs.getInt("version", 0) != STORAGE_VERSION) {
-            // Version mismatch: reset to defaults and save
-            for (int i = 0; i < MAX_AMPSWITCHS; i++) midiChannelMap[i] = i;
-            nvs.end();
-            nvs.begin("midi_map", false);
-            nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
-            nvs.putInt("version", STORAGE_VERSION);
-            nvs.end();
-            log(LOG_WARN, "MIDI map NVS version mismatch, resetting to defaults");
-        } else if (nvs.getBytesLength("map") == MAX_AMPSWITCHS) {
-            nvs.getBytes("map", midiChannelMap, MAX_AMPSWITCHS);
-            nvs.end();
-            log(LOG_INFO, "MIDI channel map loaded from NVS");
-        } else {
-            nvs.end();
-        }
-    }
-}
-
-void saveMidiChannelToNVS() {
-    Preferences nvs;
-    if (nvs.begin("midi_channel", false)) {
-        nvs.putUChar("channel", currentMidiChannel);
-        nvs.putInt("version", STORAGE_VERSION);
-        nvs.end();
-        log(LOG_INFO, "MIDI channel " + String(currentMidiChannel) + " saved to NVS");
-    } else {
-        log(LOG_ERROR, "Failed to save MIDI channel to NVS");
-    }
-}
-
-void loadMidiChannelFromNVS() {
-    Preferences nvs;
-    if (nvs.begin("midi_channel", true)) {
-        if (nvs.getInt("version", 0) != STORAGE_VERSION) {
-            // Version mismatch: reset to defaults and save
-            currentMidiChannel = 1;
-            nvs.end();
-            nvs.begin("midi_channel", false);
-            nvs.putUChar("channel", currentMidiChannel);
-            nvs.putInt("version", STORAGE_VERSION);
-            nvs.end();
-            log(LOG_WARN, "MIDI channel NVS version mismatch, resetting to default");
-        } else if (nvs.isKey("channel")) {
-            currentMidiChannel = nvs.getUChar("channel", 1);
-            nvs.end();
-            log(LOG_INFO, "MIDI channel " + String(currentMidiChannel) + " loaded from NVS");
-        } else {
-            nvs.end();
-        }
-    }
-}
-
 void handleProgramChange(byte midiChannel, byte program) {
     if (midiChannel != currentMidiChannel) return; // Only respond to selected channel
 
 #if MAX_AMPSWITCHS == 1
-    // MIDI Learn mode (if you want to support mapping, otherwise skip this block)
-    if (midiLearnChannel >= 0 || midiLearnArmed) {
+    // MIDI Learn mode - standardized timeout handling
+    if (midiLearnChannel >= 0) {
+        // Check timeout
+        if (millis() - midiLearnStartTime > MIDI_LEARN_TIMEOUT) {
+            log(LOG_WARN, "MIDI Learn timed out, exiting learn mode.");
+            midiLearnArmed = false;
+            midiLearnChannel = -1;
+            setStatusLedPattern(LED_OFF);
+            return;
+        }
+        
+        // Learn the MIDI PC mapping
         midiChannelMap[0] = program;
         saveMidiMapToNVS();
         log(LOG_INFO, String("MIDI PC#") + String(program) + " assigned to channel 1");
         setStatusLedPattern(LED_SINGLE_FLASH);
         midiLearnChannel = -1;
         midiLearnArmed = false;
+        midiLearnCompleteTime = millis(); // Set cooldown time
         return;
     }
-    // Normal operation: toggle relay on any PC message
+    
+    // Normal operation: toggle relay when mapped PC is received
+    // Check cooldown period after MIDI Learn completion
+    if (midiLearnCompleteTime > 0 && (millis() - midiLearnCompleteTime < MIDI_LEARN_COOLDOWN)) {
+        log(LOG_DEBUG, "MIDI PC ignored during post-learn cooldown period");
+        return;
+    }
+    
     if (program == midiChannelMap[0]) {
         if (currentAmpChannel == 1) {
             setAmpChannel(0);
@@ -461,7 +318,33 @@ void handleProgramChange(byte midiChannel, byte program) {
     }
     return;
 #else
+    // Multi-button mode - MIDI Learn with timeout handling
+    if (midiLearnChannel >= 0) {
+        // Check timeout
+        if (millis() - midiLearnStartTime > MIDI_LEARN_TIMEOUT) {
+            log(LOG_WARN, "MIDI Learn timed out, exiting learn mode.");
+            midiLearnArmed = false;
+            midiLearnChannel = -1;
+            return;
+        }
+        
+        // Learn the MIDI PC mapping
+        midiChannelMap[midiLearnChannel] = program;
+        saveMidiMapToNVS();
+        log(LOG_INFO, String("MIDI PC#") + String(program) + " assigned to channel " + String(midiLearnChannel + 1));
+        setStatusLedPattern(LED_SINGLE_FLASH);
+        midiLearnChannel = -1;
+        midiLearnCompleteTime = millis(); // Set cooldown time
+        return;
+    }
+    
     // Normal operation: use mapping
+    // Check cooldown period after MIDI Learn completion
+    if (midiLearnCompleteTime > 0 && (millis() - midiLearnCompleteTime < MIDI_LEARN_COOLDOWN)) {
+        log(LOG_DEBUG, "MIDI PC ignored during post-learn cooldown period");
+        return;
+    }
+    
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         if (midiChannelMap[i] == program) {
             setStatusLedPattern(LED_TRIPLE_FLASH);
