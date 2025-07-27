@@ -1,264 +1,274 @@
-# ESP32 Amp Channel Switcher
+# ESP32 Guitar Amp Channel Switcher
 
-A sophisticated ESP32-based amplifier channel switcher with wireless control, MIDI support, and comprehensive logging capabilities. Supports multiple amp configurations through build-time configuration.
+A wireless MIDI-controlled amplifier channel switcher for guitarists. Switch amp channels via MIDI Program Change messages or physical buttons, with wireless remote control capability.
 
-## Features
+## What It Does
 
-- **Multi-Channel Amp Switching**: Support for 2-4 amplifier channels via relays
-- **Build-Time Configuration**: All pin assignments, device name, and channel count are set via `platformio.ini` and parsed at runtime
-- **Runtime Pin Reporting**: Use the `pins` serial command to display all current pin assignments (amp switch, button, LED, MIDI)
-- **Wireless Control**: ESP-NOW communication for wireless remote control
-- **MIDI Support**: Program change messages for channel switching
-- **OTA Updates (AP + ElegantOTA)**: Over-the-air firmware updates via built-in Access Point and ElegantOTA web interface
-- **Comprehensive Logging**: Multi-level logging with timestamps and NVS persistence
-- **Serial Commands**: Extensive command interface for debugging and control
-- **Performance Monitoring**: Real-time performance and memory tracking
-- **Auto-Pairing**: Automatic device pairing system
-- **Button Support**: Physical buttons for direct channel switching
-- **LED Feedback Patterns**: Status LED provides feedback for events (data, command, MIDI, OTA, error, pairing)
+- **Switch amp channels** using MIDI Program Change messages from your controller/pedalboard
+- **Physical button control** for direct channel switching without MIDI
+- **Learn MIDI mappings** - assign any MIDI Program Change number to any amp channel
+- **Wireless control** via ESP-NOW for remote switching
+- **Visual feedback** with status LED for all operations
 
-## OTA Updates (Access Point + ElegantOTA)
+## Quick Start
 
-**New in this version:**
-- OTA updates are performed by starting the ESP32 as a WiFi Access Point (`ESP32_OTA`, default IP: `192.168.4.1`).
-- ElegantOTA provides a web interface for firmware upload at `http://192.168.4.1/update`.
-- No WiFiManager or captive portal is used—OTA is always available, even with no WiFi configured.
+### 1. Hardware Setup
+Connect your ESP32 with:
+- **Relays** on pins 2, 9, 10, 20 (controls amp channel switching)
+- **Buttons** on pins 1, 3, 4, 5 (manual channel control)  
+- **LED** on pin 8 (status feedback)
+- **MIDI IN** on pin 6 (from your MIDI controller)
 
-### How to Use OTA Update
+### 2. Basic Operation
 
-1. **Trigger OTA mode** (via serial command `ota`, button, or at boot).
-2. The ESP32 starts an AP named `ESP32_OTA` (password: `12345678`).
-3. Connect your phone or computer to this AP.
-4. Open a browser and go to [http://192.168.4.1/update](http://192.168.4.1/update).
-5. Upload your new firmware.
-6. The ESP32 will reboot and run the new firmware.
+**Switch Channels:**
+- **MIDI**: Send Program Change messages on MIDI channel 1 (default)
+- **Buttons**: Press any button (1-4) to switch to that channel
+- **Serial**: Type `1`, `2`, `3`, or `4` in serial monitor
 
-**OTA mode is available for 5 minutes per session.**  
-The status LED will indicate OTA mode (fast blink or custom pattern).
+**Check Status:**
+- Type `status` in serial monitor to see current channel and MIDI settings
 
-## Build-Time Configuration System
+## MIDI Learn - Map Your Controller
 
-All hardware pin assignments, feature flags, and channel counts are now set in `config.h` or via build flags in `platformio.ini`. The `CLIENT_TYPE` macro determines the device's role and features at build time. At runtime, the firmware parses these macros and reports the actual configuration via the `config` and `pins` serial commands.
+Map any MIDI Program Change number to any amp channel:
 
-### How CLIENT_TYPE Works
-- Each build environment in `platformio.ini` sets a `CLIENT_TYPE` (e.g., `AMP_SWITCHER`)
-- Other flags (e.g., `MAX_AMPSWITCHS`, `AMP_SWITCH_PINS`, `DEVICE_NAME`) are set per environment
-- The firmware adapts its features, pins, and commands based on these flags
+### Single Channel Mode:
+1. **Hold Button 1 for 10+ seconds** → Release (LED blinks fast)
+2. **Send a Program Change** from your MIDI controller
+3. **Done!** That PC number now controls the channel
 
-#### Example: Adding a New Client Type
-To add a new device type or configuration:
-1. Add a new environment in `platformio.ini`:
-```ini
-[env:client-custom-amp]
-extends = env:esp32-c3-devkitc-02
-build_flags = 
-    -D CLIENT_TYPE=AMP_SWITCHER
-    -D MAX_AMPSWITCHS=3
-    -D AMP_SWITCH_PINS="4,5,6"
-    -D AMP_BUTTON_PINS="8,9,10"
-    -D DEVICE_NAME="CUSTOM_AMP"
+### Multi-Channel Mode:
+1. **Hold Button 1 for 10+ seconds** → Release (LED blinks fast)
+2. **Press the channel button** you want to program (1-4)
+3. **Send a Program Change** from your MIDI controller  
+4. **Done!** That PC number now switches to that channel
+
+**View Your Mappings:** Type `midimap` in serial monitor
+
+**Example Mapping:**
 ```
-2. Build with the new configuration:
-```bash
-platformio run -e client-custom-amp
+Channel 1: PC#0 (Clean)
+Channel 2: PC#1 (Crunch) 
+Channel 3: PC#2 (Lead)
+Channel 4: PC#3 (Solo Boost)
 ```
 
-### Viewing the Current Configuration
-- Use the `config` serial command to display the current build configuration, including client type, pins, and device name.
-- Use the `pins` serial command to display all runtime pin assignments (amp switch, button, LED, MIDI).
+## Other Functions
 
-## Hardware Setup
+### Change MIDI Channel (1-16)
+1. **Hold Button 1 for 15+ seconds** → Release (LED fades)
+2. **Press Button 1** repeatedly to cycle through channels 1-16
+3. **Wait 10 seconds** - LED flashes to confirm the selected channel
 
-### Pin Configuration
-- **Amp Switch Pins**: Set via `AMP_SWITCH_PINS` in `platformio.ini` (e.g., GPIO 2, 9, 10, 20)
-- **Amp Button Pins**: Set via `AMP_BUTTON_PINS` in `platformio.ini` (e.g., GPIO 1, 3, 4, 5)
-- **Status/Pairing LED**: Set via `PAIRING_LED_PIN` (default: GPIO 8, reserved for LED only)
-- **MIDI RX**: Set via `MIDI_RX_PIN` (default: GPIO 6)
-- **MIDI TX**: Set via `MIDI_TX_PIN` (default: GPIO 7)
+### Pairing Mode (for wireless remotes)
+1. **Hold Button 1 for 30+ seconds** → Release
+2. LED fades - device is ready to pair with wireless remotes
 
-> **Note:** GPIO 8 is reserved for the status/pairing LED. Do **not** use GPIO 8 for relays or switches to avoid conflicts.
-
-## Button 1 Functions (Unified Logic)
-
-| Action                        | When                                 | Result                                                                                 |
-|-------------------------------|--------------------------------------|----------------------------------------------------------------------------------------|
-| **Short press (<5s)**         | Any time (single-button mode)        | Toggle relay ON/OFF                                                                    |
-| **Short press (<5s)**         | Any time (multi-button mode)         | Switch to channel 1                                                                    |
-| **15s long press**            | Any time                             | Enter channel select mode (both modes)                                                 |
-| **Press in channel select**   | While in channel select mode         | Increment MIDI channel (cycles 1-16), LED flashes selected channel number              |
-| **30s long press**            | Any time                             | Enter pairing mode                                                                     |
-| **Double long press (5s, release, 5s)** | Any time (single-button mode) | Enter MIDI Learn mode                                                                  |
-| **Long press (5s during setup window)** | First 10s after boot          | Enter OTA mode                                                                         |
-| **Long press milestones**     | Any time                             | LED flashes at 5s, 10s, 15s, 20s, 25s to provide timing feedback                       |
-
-### Summary of Key Changes
-- Channel select mode is now entered with a 15s hold, and works in both single and multi-button modes.
-- Relay toggle on short press is only for single-button mode; in multi-button mode, short press switches to channel 1.
-- Pairing mode is now a 30s hold.
-- MIDI Learn is a double long-press (single-button mode only).
-- OTA mode is a 5s long press during the setup window (first 10s after boot).
-- LED feedback is unified and milestone-based.
-
-### Supported Configurations
-
-| Configuration | Channels | Switch Pins | Button Pins | Device Name |
-|---------------|----------|-------------|-------------|-------------|
-| `client-2ch-amp` | 2 | 2, 9 | 1, 3 | 2CH_AMP |
-| `client-4ch-amp` | 4 | 2, 9, 10, 20 | 1, 3, 4, 5 | 4CH_AMP |
+### Firmware Updates (OTA)
+1. **During first 10 seconds after power-on**: Hold Button 1 for 5+ seconds
+2. Connect to WiFi network `ESP32_OTA` (password: `12345678`)
+3. Go to `http://192.168.4.1/update` and upload new firmware
 
 ## Serial Commands
 
-### System Commands
-| Command | Description |
-|---------|-------------|
-| `help` | Show complete help menu |
-| `status` | Show complete system status |
-| `config` | Show client configuration (all runtime config, device name, pins) |
-| `pins` | Show all runtime pin assignments (amp switch, button, LED, MIDI) |
-| `midimap` | Show MIDI Program Change to channel mapping |
-| `memory` | Show memory usage |
-| `network` | Show network status |
-| `amp` | Show amp channel status |
-| `pairing` | Show pairing status |
-| `uptime` | Show system uptime |
-| `version` | Show firmware version |
-| `midi` | Show MIDI configuration |
-| `buttons` | Toggle button checking on/off |
+Connect via USB and open serial monitor (115200 baud) for these commands:
 
-### MIDI Learn Feature
-- **To enter MIDI Learn mode:** Hold Button 1 and Button 2 together for >2 seconds. The device will indicate MIDI Learn mode is armed (LED/serial).
-- **To select a channel:** Release both, then short-press the desired channel button (b1–b4). The device will wait for a MIDI Program Change message.
-- **To assign:** Send a MIDI Program Change from your controller. The received PC number will be mapped to the selected channel and saved to NVS.
-- **To view mapping:** Use the `midimap` serial command.
-- **Mapping is persistent** and can be changed at any time using the above process.
+> **📋 For complete command reference, see [COMMANDS_REFERENCE.md](COMMANDS_REFERENCE.md)**
 
-#### Example Output for `midimap` Command
-```
-[INFO] === MIDI PROGRAM CHANGE MAP ===
-[INFO] Channel 1: PC#0
-[INFO] Channel 2: PC#1
-[INFO] Channel 3: PC#2
-[INFO] Channel 4: PC#3
-[INFO] ==============================
-```
+### Essential Commands
+- `status` - Show current channel and MIDI settings
+- `midimap` - Show Program Change to channel mappings
+- `1`, `2`, `3`, `4` - Switch to channel 1-4
+- `pins` - Show current pin assignments
+- `help` - Show all available commands
 
-### Control Commands
-| Command | Description |
-|---------|-------------|
-| `restart` | Reboot the device |
-| `ota` | Enter OTA update mode (serial command, or hold Button 1 for 5s during boot) |
-| `pair` | Clear pairing and re-pair |
-| `setlogN` | Set log level (N=0-4) |
-| `clearlog` | Clear saved log level |
-| `clearall` | Clear all NVS data |
+### Configuration Commands  
+- `setlog4` - Enable detailed logging
+- `clearall` - Reset all settings to defaults
+- `restart` - Reboot device
+- `ota` - Enter firmware update mode
 
-### Test Commands
-| Command | Description |
-|---------|-------------|
-| `testled` | Test status LED |
-| `testpairing` | Test pairing LED |
+## LED Status Indicators
 
-### Debug Commands
-| Command | Description |
-|---------|-------------|
-| `debug` | Show complete debug info |
-| `debugperf` | Show performance metrics |
-| `debugmemory` | Show memory analysis |
-| `debugwifi` | Show WiFi stats |
-| `debugespnow` | Show ESP-NOW stats |
-| `debugtask` | Show task stats |
-| `debughelp` | Show debug commands |
-
-### Amp Channel Commands
-| Command | Description |
-|---------|-------------|
-| `1-4` | Switch to amp channel 1-4 |
-| `b1-b4` | Simulate button press 1-4 |
-| `off` | Turn all channels off |
-
-### Example Output for `pins` Command
-```
-[INFO] === PIN ASSIGNMENTS ===
-[INFO] Amp Switch Pins: 2,3,4,5
-[INFO] Amp Button Pins: 8,9,10,20
-[INFO] Status/Pairing LED Pin: 1
-[INFO] MIDI RX Pin: 6
-[INFO] MIDI TX Pin: 7
-[INFO] ======================
-```
-### Example Output for `config` Command
-```
-[INFO] === CLIENT CONFIGURATION ===
-[INFO] Client Type: AMP_SWITCHER
-[INFO] Device Name: AMP_SWITCHER_1
-[INFO] Amp Switching: Enabled
-[INFO] Max Amp Switches: 4
-[INFO] Amp Switch Pins: 2,3,4,5
-[INFO] Amp Button Pins: 8,9,10,20
-[INFO] ===========================
-```
-
-## LED Feedback Patterns
-- **Single Flash:** ESP-NOW data received
-- **Double Flash:** Serial command or ESP-NOW command received
-- **Triple Flash:** MIDI message received
-- **Fast Blink:** OTA update in progress
-- **Solid On:** Error state
-- **Fade/Breath:** Pairing mode
-
-## NVS Storage Versioning
-
-All persistent settings (pairing info, log level, MIDI mapping) are stored in NVS (non-volatile storage) with a version number (`STORAGE_VERSION`).
-- On firmware upgrade, if the stored version does not match the current firmware's `STORAGE_VERSION`, the affected settings are reset to safe defaults and the new version is saved.
-- This ensures safe upgrades and prevents configuration corruption if the data structure changes.
-- You can safely update firmware or change configuration without risking old/bad data being loaded.
-
-**NVS versioned settings include:**
-- Pairing info
-- Log level
-- MIDI Program Change mapping
-
-If you see a warning about an NVS version mismatch, the device has reset that setting to defaults for safety.
-
-## Channel Select Mode (Unified Logic)
-
-- **Entry:** Hold Button 1 for 15 seconds to enter channel select mode (works for both single and multi-button modes).
-- **While in channel select mode:**
-  - Each press of Button 1 increments the MIDI channel selection (cycles 1-16).
-  - The LED flashes the number of times corresponding to the currently selected channel after each press.
-  - No relay toggling or other actions occur while in channel select mode.
-- **Auto-save:** After 10 seconds of inactivity, the selected channel is saved to NVS and the LED flashes the selected channel number as confirmation.
-- **Exit:** Channel select mode exits automatically after auto-save.
-
-### Example Flow
-1. Hold Button 1 for 15s → Channel select mode active (LED fades)
-2. Press Button 1 three times → LED flashes 3 times after each press (channel 3 selected)
-3. Wait 10s → Channel 3 is saved, LED flashes 3 times as confirmation
-
-## LED Feedback (Milestone Tracking)
-- The LED flashes once at each 5s, 10s, 15s, 20s, and 25s milestone during a long press, providing clear timing feedback.
-- This logic is now shared for both single and multi-button modes.
-
-## Codebase Optimization
-- The channel select and LED feedback logic is now unified and shared between single and multi-button modes, reducing code duplication and improving maintainability.
+- **Single Flash**: Button timing feedback, MIDI learned successfully
+- **Triple Flash**: MIDI message received, switching channels
+- **Fast Blink**: MIDI Learn mode active (waiting for your controller)
+- **Fade/Breath**: Channel select mode or pairing mode active
+- **OFF**: Normal operation
 
 ## Troubleshooting
 
-- **Pins or config command does not match your expected configuration:**  
-  Check your `platformio.ini` build flags and rebuild the firmware. All configuration is dynamic and reported at runtime.
-- **MIDI Learn does not work:**  
-  Ensure you are holding both Button 1 and Button 2 for >2s, then releasing and pressing the desired channel button, and then sending a MIDI Program Change. Use `midimap` to verify the current mapping.
-- **No serial output:**  
-  Check your serial monitor baud rate (115200), verify your USB connection, and try a different USB cable if needed.
-- **Pairing issues:**  
-  Use the `pair` command to reset pairing. Check WiFi channel compatibility and ensure both devices are in pairing mode.
-- **OTA not working:**  
-  Enter OTA mode by holding Button 1 for 5s during the setup window after boot, or by sending the `ota` serial command.
-- **Memory issues:**  
-  Use `debugmemory` to check memory usage. Monitor for memory leaks and consider reducing log level if needed.
-- **MIDI not working:**  
-  Check MIDI cable connections, verify MIDI channel settings, and test with the `midi` command.
-- **Log level or debug output missing:**  
-  Use `setlog4` to enable all logs, or `loglevel` to check the current log level.
-- **NVS version mismatch warning:**  
-  The device has reset that setting to defaults for safety. This is normal after a firmware upgrade or config structure change.
+**MIDI not working?**
+- Check MIDI cable connections
+- Verify you're sending Program Change (not Note On/Off)
+- Check MIDI channel setting (type `midi` to see current channel)
+
+**Can't learn MIDI?**
+- Make sure you hold Button 1 for full 10+ seconds before releasing
+- Wait for LED to blink fast before sending Program Change
+- Try `clearall` to reset if mappings seem stuck
+
+**Buttons not working?**
+- Check connections to pins 1, 3, 4, 5
+- Type `buttons` to toggle button checking on/off
+
+**Need help?**
+- Type `help` in serial monitor for complete command list
+- Type `debug` for detailed system information
+
+---
+
+## Build Configuration & Technical Details
+
+### Current Build Configuration
+The device is configured via build flags in `platformio.ini`:
+
+```ini
+[env:esp32-c3-devkitc-02]
+platform = espressif32
+board = esp32-c3-devkitm-1
+framework = arduino
+build_flags = 
+    -D CLIENT_TYPE=AMP_SWITCHER
+    -D MAX_AMPSWITCHS=4
+    -D AMP_SWITCH_PINS=\"2,9,10,20\"
+    -D AMP_BUTTON_PINS=\"1,3,4,5\"
+    -D DEVICE_NAME=\"AMP_SWITCHER_1\"
+```
+
+### Customizing Hardware Configuration
+
+**To change pin assignments or channel count:**
+1. Edit the build flags in `platformio.ini`
+2. Rebuild and flash the firmware
+3. Use `pins` and `config` commands to verify new settings
+
+**Available Build Flags:**
+- `MAX_AMPSWITCHS` - Number of channels (1-4)
+- `AMP_SWITCH_PINS` - Relay control pins (comma-separated)
+- `AMP_BUTTON_PINS` - Button input pins (comma-separated)
+- `DEVICE_NAME` - Device identifier
+- `PAIRING_LED_PIN` - Status LED pin (default: 8)
+- `MIDI_RX_PIN` - MIDI input pin (default: 6)
+- `MIDI_TX_PIN` - MIDI output pin (default: 7)
+
+### Technical Architecture
+
+**Button Handling System:**
+- Unified logic for single and multi-button configurations
+- Release-based activation for all long press functions
+- Configurable debounce timing (100ms default)
+- Milestone LED feedback at 5s intervals
+
+**MIDI System:**
+- 30-second learn timeout with automatic exit
+- 2-second cooldown after learn completion
+- NVS persistence for all mappings
+- Support for MIDI channels 1-16
+
+**Storage Management:**
+- NVS (Non-Volatile Storage) with version control
+- Automatic migration/reset on version mismatch
+- Centralized storage in `nvsManager.h/cpp`
+- Settings: MIDI maps, channel, log level, pairing
+
+**Wireless Communication:**
+- ESP-NOW protocol for low-latency control
+- Automatic pairing system
+- MAC address management
+- Channel conflict resolution
+
+### Serial Command Reference
+
+**System Information:**
+- `status` - Complete system status
+- `config` - Build configuration details
+- `pins` - Runtime pin assignments
+- `version` - Firmware and storage versions
+- `uptime` - System uptime
+- `memory` - Memory usage statistics
+
+**MIDI Commands:**
+- `midimap` - Show PC to channel mappings
+- `midi` - Show MIDI configuration
+- `1-4` - Switch to specific channel
+- `off` - Turn all channels off
+
+**Debug Commands:**
+- `debug` - Complete system debug info
+- `debugperf` - Performance metrics
+- `debugmemory` - Memory analysis
+- `debugespnow` - Wireless statistics
+- `setlog0-4` - Set logging level
+
+**Maintenance Commands:**
+- `clearall` - Reset all NVS settings
+- `clearlog` - Reset log level only
+- `pair` - Clear pairing and re-pair
+- `buttons` - Toggle button checking
+- `restart` - System reboot
+- `ota` - Enter OTA update mode
+
+### Hardware Technical Specifications
+
+**ESP32-C3 Requirements:**
+- Minimum 4MB flash recommended
+- USB-C for programming and serial
+- 3.3V I/O levels for all connections
+
+**Pin Configuration:**
+- **GPIO 8**: Reserved for status LED (PWM controlled)
+- **GPIO 1,3,4,5**: Button inputs (internal pull-up enabled)
+- **GPIO 2,9,10,20**: Relay outputs (active HIGH, 3.3V)
+- **GPIO 6**: MIDI RX (5V tolerant via optocoupler)
+- **GPIO 7**: MIDI TX (current source via 220Ω resistor)
+
+**Power Requirements:**
+- ESP32: ~80mA @ 3.3V during operation
+- Relays: Varies by type (typically 10-70mA each @ 3.3V-12V)
+- Total system: Plan for 200-500mA depending on relay configuration
+
+**MIDI Interface:**
+- Standard 5-pin DIN MIDI IN connection
+- Optocoupler isolation recommended (6N138 or H11L1)
+- MIDI THRU capability on TX pin
+- Supports MIDI 1.0 specification
+
+### LED Status Pattern Details
+
+**Single Flash Patterns:**
+- Button milestone feedback (5s, 10s, 15s, 20s, 25s)
+- MIDI Learn completion confirmation
+- ESP-NOW data received indication
+
+**Multi-Flash Patterns:**
+- **Double Flash**: Serial command received
+- **Triple Flash**: MIDI Program Change received and processed
+- **Quadruple Flash**: Channel switching confirmation
+
+**Continuous Patterns:**
+- **Fast Blink (200ms)**: MIDI Learn mode armed
+- **Slow Blink (1000ms)**: OTA update mode
+- **Fade/Breath**: Channel select or pairing mode
+- **Solid ON**: System error state
+- **OFF**: Normal operation
+
+### NVS Storage Layout
+
+**Storage Namespaces:**
+- `pairing` - ESP-NOW MAC addresses and channels
+- `midi` - Program Change mappings and MIDI channel
+- `system` - Log level and configuration flags
+
+**Storage Versioning:**
+- Current version tracked in `STORAGE_VERSION` constant
+- Automatic reset to defaults on version mismatch
+- Safe firmware upgrades without data corruption
+- Manual override with `clearall` command
+
+**Data Persistence:**
+- MIDI mappings survive power cycles
+- Channel preferences retained
+- Pairing information persistent
+- Log level settings maintained
