@@ -253,9 +253,14 @@ void handleSerialCommand(const String& cmd) {
         }
     } else if (cmd.equalsIgnoreCase("midi")) {
         log(LOG_INFO, "MIDI Status:");
-        log(LOG_INFO, "  MIDI Channel: OMNI (listening to all)");
-        log(LOG_INFO, "  MIDI Thru: Enabled");
-        log(LOG_INFO, "  MIDI Pins - RX: " + String(MIDI_RX_PIN) + ", TX: " + String(MIDI_TX_PIN));
+        log(LOG_INFO, String("  Current MIDI Channel: ") + String(currentMidiChannel) + " (persistent, set via channel select mode)");
+        log(LOG_INFO, String("  MIDI Thru: Enabled"));
+        log(LOG_INFO, String("  MIDI Pins - RX: ") + String(MIDI_RX_PIN) + ", TX: " + String(MIDI_TX_PIN));
+        log(LOG_INFO, String("  Program Change Mapping:"));
+        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+            log(LOG_INFO, String("    Channel ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
+        }
+        log(LOG_INFO, "  (Use 'chset' to change MIDI channel, 'midimap' for detailed mapping)");
     } else if (cmd.equalsIgnoreCase("version")) {
         log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
         log(LOG_INFO, "Storage Version: " + String(STORAGE_VERSION));
@@ -290,6 +295,10 @@ void handleSerialCommand(const String& cmd) {
             log(LOG_INFO, String("Channel ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
         }
         log(LOG_INFO, "==============================");
+    } else if (cmd.equalsIgnoreCase("ch")) {
+        log(LOG_INFO, String("Current MIDI Channel: ") + String(currentMidiChannel) + " (persistent, set via channel select mode)");
+    } else if (cmd.equalsIgnoreCase("chset")) {
+        log(LOG_INFO, "To change MIDI channel: Hold Button 1 for 15s to enter channel select mode, then press to increment channel. Auto-saves after 10s of inactivity.");
     } else {
         log(LOG_WARN, "Unknown command: '" + cmd + "'");
         log(LOG_INFO, "Type 'help' for available commands");
@@ -306,13 +315,17 @@ void printHelpMenu() {
     Serial.println(F("  amp         : Show amp channel status"));
     Serial.println(F("  pairing     : Show pairing status"));
     Serial.println(F("  pins        : Show pin assignments (amp, button, LED, MIDI)"));
-    Serial.println(F("  midimap     : Show MIDI Program Change to channel mapping"));
     Serial.println(F("  uptime      : Show system uptime"));
     Serial.println(F("  version     : Show firmware version"));
-    Serial.println(F("  midi        : Show MIDI configuration"));
     Serial.println(F("  buttons     : Toggle button checking on/off"));
     Serial.println(F("  loglevel    : Show current log level"));
     Serial.println(F("  clearlog    : Clear saved log level (reset to default)"));
+    Serial.println(F(""));
+    Serial.println(F("MIDI COMMANDS:"));
+    Serial.println(F("  midi        : Show current MIDI configuration and channel"));
+    Serial.println(F("  midimap     : Show MIDI Program Change to channel mapping"));
+    Serial.println(F("  ch          : Show the current MIDI channel (persistent, set via channel select mode)"));
+    Serial.println(F("  chset       : Print instructions for entering channel select mode"));
     Serial.println(F(""));
     Serial.println(F("CONTROL COMMANDS:"));
     Serial.println(F("  restart     : Reboot the device"));

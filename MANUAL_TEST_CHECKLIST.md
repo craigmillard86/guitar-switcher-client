@@ -258,6 +258,19 @@
 
 ---
 
+## Button 1 Functions (Unified Logic)
+- [ ] **Short press (<5s) [single-button mode]:** Toggles relay ON/OFF.
+- [ ] **Short press (<5s) [multi-button mode]:** Switches to channel 1.
+- [ ] **15s long press:** Enters channel select mode (LED fades).
+- [ ] **Press in channel select mode:** Each press increments MIDI channel (cycles 1-16), LED flashes selected channel number after each press. No relay toggling or other actions should occur.
+- [ ] **Wait 10s in channel select mode:** Selected channel is saved, LED flashes selected channel number as confirmation, mode exits.
+- [ ] **30s long press:** Enters pairing mode.
+- [ ] **Double long press (5s, release, 5s) [single-button mode]:** Enters MIDI Learn mode.
+- [ ] **Long press (5s during setup window):** Enters OTA mode (first 10s after boot).
+- [ ] **Long press milestones:** LED flashes at 5s, 10s, 15s, 20s, 25s to provide timing feedback (both modes).
+
+---
+
 ## Channel Select Mode (Unified)
 - [ ] Hold Button 1 for 15 seconds. LED should fade to indicate channel select mode is active.
 - [ ] Press Button 1 repeatedly. Each press increments the MIDI channel (cycles 1-16), and the LED flashes the selected channel number after each press.
