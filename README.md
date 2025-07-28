@@ -14,17 +14,19 @@ A wireless MIDI-controlled amplifier channel switcher for guitarists. Switch amp
 
 ### 1. Hardware Setup
 Connect your ESP32 with:
-- **Relays** on pins 2, 9, 10, 20 (controls amp channel switching)
-- **Buttons** on pins 1, 3, 4, 5 (manual channel control)  
+- **Relay** on pin 2 (controls amp channel switching)
+- **Button** on pin 1 (manual channel control)  
 - **LED** on pin 8 (status feedback)
 - **MIDI IN** on pin 6 (from your MIDI controller)
+
+> **Note:** Current configuration is single-channel mode. Multi-channel setup available via build flags.
 
 ### 2. Basic Operation
 
 **Switch Channels:**
 - **MIDI**: Send Program Change messages on MIDI channel 1 (default)
-- **Buttons**: Press any button (1-4) to switch to that channel
-- **Serial**: Type `1`, `2`, `3`, or `4` in serial monitor
+- **Button**: Press button to toggle relay ON/OFF (single-channel mode)
+- **Serial**: Type `1` in serial monitor to toggle channel
 
 **Check Status:**
 - Type `status` in serial monitor to see current channel and MIDI settings

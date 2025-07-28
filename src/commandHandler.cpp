@@ -39,6 +39,48 @@ static bool channelSelectMode = false;
 static uint8_t buttonPressCount = 0;
 static uint8_t tempMidiChannel = 1;
 static unsigned long channelSelectStart = 0;
+static unsigned long lastChannelButtonPress = 0;
+
+// Channel confirmation variables for non-blocking LED feedback
+static bool showingChannelConfirmation = false;
+static uint8_t confirmationChannel = 0;
+static uint8_t confirmationFlashCount = 0;
+static unsigned long lastConfirmationFlash = 0;
+static bool confirmationLedState = false;
+
+// Function to start non-blocking channel confirmation
+void showChannelConfirmation(uint8_t channel) {
+    showingChannelConfirmation = true;
+    confirmationChannel = channel;
+    confirmationFlashCount = 0;
+    lastConfirmationFlash = millis();
+    confirmationLedState = false;
+    setStatusLedPattern(LED_OFF); // Start with LED off
+}
+
+// Function to handle non-blocking channel confirmation LED flashing
+void updateChannelConfirmation() {
+    if (!showingChannelConfirmation) return;
+    
+    unsigned long now = millis();
+    
+    if (confirmationFlashCount < confirmationChannel * 2) { // *2 because we flash on and off
+        if (now - lastConfirmationFlash >= 200) { // 200ms intervals
+            confirmationLedState = !confirmationLedState;
+            if (confirmationLedState) {
+                setStatusLedPattern(LED_SINGLE_FLASH);
+            } else {
+                setStatusLedPattern(LED_OFF);
+            }
+            confirmationFlashCount++;
+            lastConfirmationFlash = now;
+        }
+    } else {
+        // Finished flashing, return to normal operation
+        showingChannelConfirmation = false;
+        setStatusLedPattern(LED_OFF); // Return to normal operation (LED off)
+    }
+}
 
 // Shared function to reset milestone flags
 void resetMilestoneFlags() {
@@ -58,11 +100,11 @@ void handleLedFeedback(unsigned long held, const char* buttonName) {
     } else if (held >= 10000 && !milestone10s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone10s = true;
-        log(LOG_INFO, String(buttonName) + " - 10s held - LED feedback");
+        log(LOG_INFO, String(buttonName) + " - 10s held - MIDI Learn ready");
     } else if (held >= 15000 && !milestone15s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone15s = true;
-        log(LOG_INFO, String(buttonName) + " - 15s held - Channel Select Mode Active!");
+        log(LOG_INFO, String(buttonName) + " - 15s held - Channel Select ready");
     } else if (held >= 20000 && !milestone20s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone20s = true;
@@ -80,6 +122,7 @@ void enterChannelSelectMode() {
     buttonPressCount = 0;
     tempMidiChannel = currentMidiChannel;
     channelSelectStart = millis();
+    lastChannelButtonPress = millis(); // Initialize the last button press time
     log(LOG_INFO, "15s long press: Channel Select Mode Active!");
     setStatusLedPattern(LED_FADE);
 }
@@ -88,33 +131,25 @@ void enterChannelSelectMode() {
 void handleChannelSelection() {
     buttonPressCount++;
     tempMidiChannel = ((buttonPressCount - 1) % 16) + 1;
+    lastChannelButtonPress = millis(); // Update the last button press time
     log(LOG_INFO, "Button press " + String(buttonPressCount) + 
         " -> Channel " + String(tempMidiChannel));
     
-    // Visual feedback
-    for (int i = 0; i < tempMidiChannel; i++) {
-        setStatusLedPattern(LED_SINGLE_FLASH);
-        delay(200);
-        setStatusLedPattern(LED_OFF);
-        delay(100);
-    }
+    // Immediate visual feedback - single flash to acknowledge button press
+    setStatusLedPattern(LED_SINGLE_FLASH);
 }
 
 // Shared function to handle auto-save
 void handleChannelSelectAutoSave() {
-    if (channelSelectMode && (millis() - channelSelectStart > 10000)) {
+    if (channelSelectMode && (millis() - lastChannelButtonPress > 5000)) {
         currentMidiChannel = tempMidiChannel;
         saveMidiChannelToNVS();
         channelSelectMode = false;
         log(LOG_INFO, "Channel " + String(currentMidiChannel) + " selected and saved");
         
-        // Flash LED the number of times corresponding to the selected channel
-        for (int i = 0; i < currentMidiChannel; i++) {
-            setStatusLedPattern(LED_SINGLE_FLASH);
-            delay(200);
-            setStatusLedPattern(LED_OFF);
-            delay(100);
-        }
+        // Non-blocking LED feedback showing the selected channel number
+        // This will be handled by a separate function to avoid blocking
+        showChannelConfirmation(currentMidiChannel);
     }
 }
 
@@ -199,18 +234,19 @@ void checkAmpChannelButtons() {
                 
                 if (!buttonLongPressHandled[i]) {
                     if (channelSelectMode) {
+                        // In channel select mode, any button can be used for selection
                         handleChannelSelection();
-                    } else if (held >= 30000 && !midiLearnJustTimedOut) {
-                        // Pairing mode (30s+ hold released) - but not if MIDI Learn just timed out
+                    } else if (held >= 30000 && !midiLearnJustTimedOut && i == 0) {
+                        // Pairing mode (30s+ hold released) - only button 1, not if MIDI Learn just timed out
                         clearPairingNVS();
                         pairingStatus = NOT_PAIRED;
                         log(LOG_INFO, "30s+ hold released: Pairing mode triggered!");
                         channelSelectMode = false;
-                    } else if (held >= 15000) {
-                        // Channel Select Mode (15s+ hold released)
+                    } else if (held >= 15000 && i == 0) {
+                        // Channel Select Mode (15s+ hold released) - only button 1
                         enterChannelSelectMode();
-                    } else if (held >= midiLearnActivationTime) {
-                        // MIDI Learn mode (10s+ hold released) - unified for both single and multi-button
+                    } else if (held >= midiLearnActivationTime && i == 0) {
+                        // MIDI Learn mode (10s+ hold released) - only button 1, unified for both single and multi-button
                         midiLearnArmed = true;
                         #if MAX_AMPSWITCHS == 1
                         midiLearnChannel = 0; // Single channel device - start learning immediately
@@ -254,6 +290,9 @@ void checkAmpChannelButtons() {
         }
         lastButtonState[i] = reading;
     }
+    
+    // Update non-blocking channel confirmation LED feedback
+    updateChannelConfirmation();
     
     // Shared auto-save logic
     handleChannelSelectAutoSave();

@@ -212,7 +212,7 @@ void handleSerialCommand(const String& cmd) {
         log(LOG_INFO, String("  MIDI Pins - RX: ") + String(MIDI_RX_PIN) + ", TX: " + String(MIDI_TX_PIN));
         log(LOG_INFO, String("  Program Change Mapping:"));
         for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-            log(LOG_INFO, String("    Channel ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
+            log(LOG_INFO, String("    Button ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
         }
         log(LOG_INFO, "  (Use 'chset' to change MIDI channel, 'midimap' for detailed mapping)");
     } else if (cmd.equalsIgnoreCase("version")) {
@@ -246,7 +246,7 @@ void handleSerialCommand(const String& cmd) {
     } else if (cmd.equalsIgnoreCase("midimap")) {
         log(LOG_INFO, "=== MIDI PROGRAM CHANGE MAP ===");
         for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-            log(LOG_INFO, String("Channel ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
+            log(LOG_INFO, String("Button ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
         }
         log(LOG_INFO, "==============================");
     } else if (cmd.equalsIgnoreCase("ch")) {
