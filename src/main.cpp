@@ -34,7 +34,32 @@
 MessageType messageType;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
+// Forward declarations for setup helper functions
+void initializeSystemAndLogging();
+void initializeHardware();
+void initializeWiFi();
+bool checkForOTATrigger();
+void initializePairing();
+void initializeMIDI();
+
 void setup() {
+    initializeSystemAndLogging();
+    initializeHardware();
+    initializeWiFi();
+    
+    if (checkForOTATrigger()) {
+        return; // OTA mode triggered, exit setup
+    }
+    
+    initializePairing();
+    initializeMIDI();
+    
+    log(LOG_INFO, "=== Setup Complete ===");
+    log(LOG_INFO, "Type 'help' for available commands");
+    log(LOG_INFO, "Type 'status' for system information");
+}
+
+void initializeSystemAndLogging() {
     delay(5000);
     Serial.begin(115200);
     
@@ -52,19 +77,22 @@ void setup() {
     loadMidiChannelFromNVS();
     
     log(LOG_INFO, "=== ESP32 Client Starting ===");
-    log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
-    log(LOG_INFO, "Board ID: " + String(BOARD_ID));
-    
-     
+    logf(LOG_INFO, "Firmware Version: %s", FIRMWARE_VERSION);
+    logf(LOG_INFO, "Board ID: %u", BOARD_ID);
+}
+
+void initializeHardware() {
     // Setup pairing LED
     pinMode(PAIRING_LED_PIN, OUTPUT);
     ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
     ledcAttachPin(PAIRING_LED_PIN, LEDC_CHANNEL_0);
-    log(LOG_DEBUG, "Pairing LED initialized on pin " + String(PAIRING_LED_PIN));
+    logf(LOG_DEBUG, "Pairing LED initialized on pin %d", PAIRING_LED_PIN);
     setStatusLedPattern(LED_OFF);
     
     log(LOG_INFO, "Hardware initialization complete");
-    
+}
+
+void initializeWiFi() {
     // Initialize WiFi
     log(LOG_DEBUG, "Initializing WiFi...");
     WiFi.mode(WIFI_STA);
@@ -78,7 +106,9 @@ void setup() {
     
     WiFi.disconnect();
     start = millis();
-    
+}
+
+bool checkForOTATrigger() {
     // OTA trigger check
     unsigned long serialWaitStart = millis();
     log(LOG_INFO, "Enter 'ota' within 10 seconds or hold Button 1 for 5s to enter OTA mode...");
@@ -115,9 +145,14 @@ void setup() {
         log(LOG_INFO, "OTA mode triggered, starting OTA...");
         updateStatusLED();
         startOTA_AP();
-        return;
+        return true;
     }
+    
     serialOtaTrigger = false; // Prevent re-entry
+    return false;
+}
+
+void initializePairing() {
     // Check for existing pairing
     if (!loadServerFromNVS(serverAddress, &currentChannel)) {
         log(LOG_WARN, "No paired server found in NVS, starting pairing...");
@@ -127,11 +162,11 @@ void setup() {
         pairingStatus = PAIR_PAIRED;
         log(LOG_INFO, "Loaded paired server from NVS:");
         printMAC(serverAddress, LOG_INFO);
-        log(LOG_INFO, "Channel: " + String(currentChannel));
+        logf(LOG_INFO, "Channel: %u", currentChannel);
         
         // Set the WiFi channel
         ESP_ERROR_CHECK(esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE));
-        log(LOG_DEBUG, "WiFi channel set to " + String(currentChannel));
+        logf(LOG_DEBUG, "WiFi channel set to %u", currentChannel);
 
         // Initialize ESP-NOW
         log(LOG_DEBUG, "Initializing ESP-NOW...");
@@ -141,37 +176,46 @@ void setup() {
         addPeer(serverAddress, currentChannel);
         log(LOG_DEBUG, "Peer added to ESP-NOW");
     }
+}
 
+void initializeMIDI() {
     // Initialize MIDI
     log(LOG_DEBUG, "Initializing MIDI...");
     Serial1.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
     MIDI.setHandleProgramChange(handleProgramChange);
     MIDI.begin(MIDI_CHANNEL_OMNI); // Listen to all channels
     MIDI.turnThruOn();             // Pass incoming MIDI to output (MIDI THRU)
-    log(LOG_INFO, "MIDI initialized on pins RX:" + String(MIDI_RX_PIN) + " TX:" + String(MIDI_TX_PIN));
-
-    log(LOG_INFO, "=== Setup Complete ===");
-    log(LOG_INFO, "Type 'help' for available commands");
-    log(LOG_INFO, "Type 'status' for system information");
+    logf(LOG_INFO, "MIDI initialized on pins RX:%u TX:%u", MIDI_RX_PIN, MIDI_TX_PIN);
 }
+
+// Forward declarations for loop helper functions
+void processMainTasks();
+void handleOTAMode();
+void performPeriodicTasks();
 
 void loop() {
     unsigned long loopStart = millis();
     
-    // Always check for button presses and serial commands (regardless of pairing status)
-    checkAmpChannelButtons();
-    updateStatusLED(); // Replaces updatePairingLED()
-    checkSerialCommands();
-
-    // Add this block at the top of loop()
+    processMainTasks();
+    
+    // Handle OTA mode if triggered
     if (serialOtaTrigger) {
-        log(LOG_INFO, "OTA mode triggered, starting OTA...");
-        updateStatusLED(); // Replaces setStatusLedPattern(LED_FAST_BLINK);
-        startOTA_AP();
-        serialOtaTrigger = false; // Prevent re-entry
-        ESP.restart(); // Optional: reboot after OTA
+        handleOTAMode();
         return;
     }
+    
+    // Update performance metrics
+    unsigned long loopTime = millis() - loopStart;
+    updatePerformanceMetrics(loopTime);
+    
+    performPeriodicTasks();
+}
+
+void processMainTasks() {
+    // Always check for button presses and serial commands (regardless of pairing status)
+    checkAmpChannelButtons();
+    updateStatusLED();
+    checkSerialCommands();
 
     // Process MIDI messages
     MIDI.read();
@@ -179,13 +223,18 @@ void loop() {
     // Handle pairing if not paired (but don't return early)
     if (pairingStatus != PAIR_PAIRED) {
         autoPairing();
-        // Don't return early - continue with the rest of the loop
     }
-    
-    // Update performance metrics
-    unsigned long loopTime = millis() - loopStart;
-    updatePerformanceMetrics(loopTime);
-    
+}
+
+void handleOTAMode() {
+    log(LOG_INFO, "OTA mode triggered, starting OTA...");
+    updateStatusLED();
+    startOTA_AP();
+    serialOtaTrigger = false; // Prevent re-entry
+    ESP.restart(); // Optional: reboot after OTA
+}
+
+void performPeriodicTasks() {
     // Periodic memory check (every 30 seconds)
     static unsigned long lastMemoryCheck = 0;
     if (millis() - lastMemoryCheck > 30000) {
@@ -193,7 +242,7 @@ void loop() {
         updateMemoryStats();
         uint32_t freeHeap = getFreeHeap();
         if (freeHeap < 10000) { // Warning if less than 10KB free
-            log(LOG_WARN, "Low memory warning: " + String(freeHeap) + "B free");
+            logf(LOG_WARN, "Low memory warning: %uB free", freeHeap);
         }
     }
 }

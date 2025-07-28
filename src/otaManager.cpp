@@ -31,13 +31,20 @@ void startOTA() {
   }
 
   log(LOG_INFO, "WiFi connected during OTA setup");
-  log(LOG_INFO, "IP Address: " + WiFi.localIP().toString());
+  char ipStr[16];
+  WiFi.localIP().toString().toCharArray(ipStr, sizeof(ipStr));
+  logf(LOG_INFO, "IP Address: %s", ipStr);
   
   server.on("/", HTTP_GET, []() {
+    char ipStr[16];
+    WiFi.localIP().toString().toCharArray(ipStr, sizeof(ipStr));
+    
     String html = "<html><head><style>body{font-family:sans-serif;text-align:center;padding:2em;}h1{color:#333;}p{margin:1em 0;}a,input[type=submit]{padding:0.5em 1em;background:#007bff;color:#fff;border:none;border-radius:5px;}a:hover,input[type=submit]:hover{background:#0056b3;}</style></head><body>";
     html += "<h1>ESP32 OTA Ready</h1>";
     html += "<p><b>Firmware Version:</b> " FIRMWARE_VERSION "</p>";
-    html += "<p><b>IP:</b> " + WiFi.localIP().toString() + "</p>";
+    html += "<p><b>IP:</b> ";
+    html += ipStr;
+    html += "</p>";
     html += "<p><a href='/update'>Go to OTA Update</a></p>";
     html += "<form action='/reboot' method='POST'><input type='submit' value='Reboot ESP32'></form>";
     html += "</body></html>";

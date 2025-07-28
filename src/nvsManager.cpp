@@ -20,9 +20,26 @@
 #include <Preferences.h>
 
 void saveMidiMapToNVS() {
+    // Validate midiChannelMap array before saving
+    bool validMap = true;
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+        if (midiChannelMap[i] > 127) {  // MIDI program change values are 0-127
+            logf(LOG_ERROR, "Invalid MIDI program %u at index %d, cannot save", midiChannelMap[i], i);
+            validMap = false;
+        }
+    }
+    
+    if (!validMap) {
+        log(LOG_ERROR, "MIDI map contains invalid values, save aborted");
+        return;
+    }
+    
     Preferences nvs;
     if (nvs.begin("midi_map", false)) {
-        nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+        size_t written = nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+        if (written != MAX_AMPSWITCHS) {
+            logf(LOG_ERROR, "MIDI map save incomplete: wrote %zu bytes, expected %d", written, MAX_AMPSWITCHS);
+        }
         nvs.putInt("version", STORAGE_VERSION);
         nvs.end();
         log(LOG_INFO, "MIDI channel map saved to NVS");
@@ -36,20 +53,50 @@ void loadMidiMapFromNVS() {
     if (nvs.begin("midi_map", true)) {
         if (nvs.getInt("version", 0) != STORAGE_VERSION) {
             // Version mismatch: reset to defaults and save
-            for (int i = 0; i < MAX_AMPSWITCHS; i++) midiChannelMap[i] = i;
+            for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+                midiChannelMap[i] = (i < 128) ? i : 0;  // Ensure valid MIDI values
+            }
             nvs.end();
             nvs.begin("midi_map", false);
             nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
             nvs.putInt("version", STORAGE_VERSION);
             nvs.end();
             log(LOG_WARN, "MIDI map NVS version mismatch, resetting to defaults");
-        } else if (nvs.getBytesLength("map") == MAX_AMPSWITCHS) {
-            nvs.getBytes("map", midiChannelMap, MAX_AMPSWITCHS);
-            nvs.end();
-            log(LOG_INFO, "MIDI channel map loaded from NVS");
         } else {
-            nvs.end();
+            size_t expectedSize = MAX_AMPSWITCHS;
+            size_t actualSize = nvs.getBytesLength("map");
+            
+            if (actualSize == expectedSize) {
+                size_t read = nvs.getBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+                if (read != expectedSize) {
+                    logf(LOG_ERROR, "MIDI map read incomplete: got %zu bytes, expected %zu", read, expectedSize);
+                }
+                
+                // Validate loaded values
+                bool validMap = true;
+                for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+                    if (midiChannelMap[i] > 127) {
+                        logf(LOG_WARN, "Invalid MIDI program %u at index %d, resetting to 0", midiChannelMap[i], i);
+                        midiChannelMap[i] = 0;
+                        validMap = false;
+                    }
+                }
+                
+                if (!validMap) {
+                    // Re-save with corrected values
+                    nvs.end();
+                    saveMidiMapToNVS();
+                } else {
+                    nvs.end();
+                    log(LOG_INFO, "MIDI channel map loaded from NVS");
+                }
+            } else {
+                logf(LOG_ERROR, "MIDI map size mismatch: got %zu bytes, expected %zu", actualSize, expectedSize);
+                nvs.end();
+            }
         }
+    } else {
+        log(LOG_ERROR, "Failed to open MIDI map NVS for reading");
     }
 }
 
@@ -59,7 +106,7 @@ void saveMidiChannelToNVS() {
         nvs.putUChar("channel", currentMidiChannel);
         nvs.putInt("version", STORAGE_VERSION);
         nvs.end();
-        log(LOG_INFO, "MIDI channel " + String(currentMidiChannel) + " saved to NVS");
+        logf(LOG_INFO, "MIDI channel %u saved to NVS", currentMidiChannel);
     } else {
         log(LOG_ERROR, "Failed to save MIDI channel to NVS");
     }
@@ -80,7 +127,7 @@ void loadMidiChannelFromNVS() {
         } else if (nvs.isKey("channel")) {
             currentMidiChannel = nvs.getUChar("channel", 1);
             nvs.end();
-            log(LOG_INFO, "MIDI channel " + String(currentMidiChannel) + " loaded from NVS");
+            logf(LOG_INFO, "MIDI channel %u loaded from NVS", currentMidiChannel);
         } else {
             nvs.end();
         }
@@ -94,7 +141,7 @@ void saveLogLevelToNVS(LogLevel level) {
         nvs.putUChar("log_level", (uint8_t)level);
         nvs.putInt("version", STORAGE_VERSION);
         nvs.end();
-        log(LOG_DEBUG, "Log level saved to NVS: " + String((uint8_t)level) + " (version " + String(STORAGE_VERSION) + ")");
+        logf(LOG_DEBUG, "Log level saved to NVS: %u (version %d)", (uint8_t)level, STORAGE_VERSION);
     } else {
         log(LOG_ERROR, "Failed to save log level to NVS");
     }
@@ -114,7 +161,7 @@ LogLevel loadLogLevelFromNVS() {
         uint8_t savedLevel = nvs.getUChar("log_level", LOG_INFO);
         level = (LogLevel)savedLevel;
         nvs.end();
-        log(LOG_DEBUG, "Log level loaded from NVS: " + String((uint8_t)level) + " (version " + String(STORAGE_VERSION) + ")");
+        logf(LOG_DEBUG, "Log level loaded from NVS: %u (version %d)", (uint8_t)level, STORAGE_VERSION);
     } else {
         log(LOG_WARN, "Failed to load log level from NVS, using default");
     }
@@ -155,7 +202,7 @@ void saveServerToNVS(const uint8_t* mac, uint8_t channel) {
         nvs.putInt("version", STORAGE_VERSION);
         log(LOG_INFO, "Server info saved to NVS:");
         printMAC(mac, LOG_INFO);
-        log(LOG_INFO, "Channel: " + String(channel));
+        logf(LOG_INFO, "Channel: %u", channel);
         nvs.end();
     } else {
         log(LOG_ERROR, "Failed to open NVS for writing!");
@@ -178,7 +225,7 @@ bool loadServerFromNVS(uint8_t* mac, uint8_t* channel) {
             *channel = nvs.getUChar("channel", 1);
             log(LOG_INFO, "Server info loaded from NVS:");
             printMAC(mac, LOG_INFO);
-            log(LOG_INFO, "Channel: " + String(*channel));
+            logf(LOG_INFO, "Channel: %u", *channel);
             success = true;
         } else {
             log(LOG_DEBUG, "No server MAC found in NVS");

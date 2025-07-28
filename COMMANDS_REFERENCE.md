@@ -114,19 +114,21 @@ Connect via USB serial monitor (115200 baud) and try these essential commands:
 Based on current `platformio.ini` build settings:
 
 ### Pin Assignments
-- **Relay Control**: GPIO 2, 9, 10, 20 (amp channel switching)
-- **Button Inputs**: GPIO 1, 3, 4, 5 (manual channel control)
+- **Relay Control**: GPIO 2 (amp channel switching)
+- **Button Input**: GPIO 1 (manual channel control)
 - **Status LED**: GPIO 8 (visual feedback)
 - **MIDI Input**: GPIO 6 (from MIDI controller)
 - **MIDI Output**: GPIO 7 (MIDI thru)
+
+> **Note:** Current configuration is single-channel mode (MAX_AMPSWITCHS=1)
 
 ### Example Command Outputs
 
 **`pins` Command:**
 ```
 [INFO] === PIN ASSIGNMENTS ===
-[INFO] Amp Switch Pins: 2,9,10,20
-[INFO] Amp Button Pins: 1,3,4,5
+[INFO] Amp Switch Pins: 2
+[INFO] Amp Button Pins: 1
 [INFO] Status/Pairing LED Pin: 8
 [INFO] MIDI RX Pin: 6
 [INFO] MIDI TX Pin: 7
@@ -149,9 +151,9 @@ Based on current `platformio.ini` build settings:
 [INFO] Client Type: AMP_SWITCHER
 [INFO] Device Name: AMP_SWITCHER_1
 [INFO] Amp Switching: Enabled
-[INFO] Max Amp Switches: 4
-[INFO] Amp Switch Pins: 2,9,10,20
-[INFO] Amp Button Pins: 1,3,4,5
+[INFO] Max Amp Switches: 1
+[INFO] Amp Switch Pins: 2
+[INFO] Amp Button Pins: 1
 [INFO] ===========================
 ```
 

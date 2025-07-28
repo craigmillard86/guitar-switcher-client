@@ -44,17 +44,17 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
     
     log(LOG_DEBUG, "Packet received from ");
     printMAC(mac_addr, LOG_DEBUG);
-    log(LOG_DEBUG, "Data size: " + String(len) + " bytes");
+    logf(LOG_DEBUG, "Data size: %u bytes", len);
     
     switch (type) {
         case DATA:      // we received data from server
             setStatusLedPattern(LED_SINGLE_FLASH);
             memcpy(&inData, incomingData, sizeof(inData));
             log(LOG_DEBUG, "Data packet received:");
-            log(LOG_DEBUG, "  ID: " + String(inData.id));
-            log(LOG_DEBUG, "  Temperature: " + String(inData.temp));
-            log(LOG_DEBUG, "  Humidity: " + String(inData.hum));
-            log(LOG_DEBUG, "  Reading ID: " + String(inData.readingId));
+            logf(LOG_DEBUG, "  ID: %lu", inData.id);
+            logf(LOG_DEBUG, "  Temperature: %.1f", inData.temp);
+            logf(LOG_DEBUG, "  Humidity: %.1f", inData.hum);
+            logf(LOG_DEBUG, "  Reading ID: %lu", inData.readingId);
 
             if (inData.readingId % 2 == 1) {
                 digitalWrite(LED_BUILTIN, LOW);
@@ -70,7 +70,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
                 log(LOG_INFO, "Pairing successful!");
                 log(LOG_INFO, "Server MAC Address: ");
                 printMAC(pairingData.macAddr, LOG_INFO);
-                log(LOG_INFO, "Channel: " + String(pairingData.channel));
+                logf(LOG_INFO, "Channel: %u", pairingData.channel);
                 
                 log(LOG_DEBUG, "Adding peer to ESP-NOW...");
                 addPeer(pairingData.macAddr, pairingData.channel); // add the server to the peer list 
@@ -89,7 +89,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
             break;
             
         default:
-            log(LOG_WARN, "Unknown message type: " + String(type));
+            logf(LOG_WARN, "Unknown message type: %u", type);
             break;
     }  
 }

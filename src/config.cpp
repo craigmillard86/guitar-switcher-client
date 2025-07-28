@@ -53,26 +53,65 @@ String getClientTypeString() {
 
 void printClientConfiguration() {
     log(LOG_INFO, "=== CLIENT CONFIGURATION ===");
-    log(LOG_INFO, String("Client Type: ") + getClientTypeString());
-    log(LOG_INFO, String("Device Name: ") + deviceName);
+    logf(LOG_INFO, "Client Type: %s", getClientTypeString());
+    logf(LOG_INFO, "Device Name: %s", deviceName);
     
 #if HAS_AMP_SWITCHING
     log(LOG_INFO, "Amp Switching: Enabled");
-    log(LOG_INFO, "Max Amp Switches: " + String(MAX_AMPSWITCHS));
-    // Print ampSwitchPins as comma-separated string
-    String switchPinsStr;
-    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-        switchPinsStr += String(ampSwitchPins[i]);
-        if (i < MAX_AMPSWITCHS - 1) switchPinsStr += ",";
+    logf(LOG_INFO, "Max Amp Switches: %d", MAX_AMPSWITCHS);
+    // Print ampSwitchPins as comma-separated string with bounds checking
+    char switchPinsStr[64] = "";
+    size_t switchStrLen = 0;
+    for (int i = 0; i < MAX_AMPSWITCHS && i < 8; i++) {  // Extra bounds check
+        char pinStr[8];
+        int written = snprintf(pinStr, sizeof(pinStr), "%d", ampSwitchPins[i]);
+        if (written < 0 || written >= (int)sizeof(pinStr)) {
+            logf(LOG_ERROR, "Pin string formatting error at index %d", i);
+            break;
+        }
+        
+        // Check if we have space for the pin string plus comma
+        size_t needed = strlen(pinStr) + (i < MAX_AMPSWITCHS - 1 ? 1 : 0);
+        if (switchStrLen + needed >= sizeof(switchPinsStr) - 1) {
+            log(LOG_WARN, "Switch pins string buffer overflow prevented");
+            break;
+        }
+        
+        strcat(switchPinsStr, pinStr);
+        switchStrLen += strlen(pinStr);
+        if (i < MAX_AMPSWITCHS - 1) {
+            strcat(switchPinsStr, ",");
+            switchStrLen++;
+        }
     }
-    log(LOG_INFO, "Amp Switch Pins: " + switchPinsStr);
-    // Print ampButtonPins as comma-separated string
-    String buttonPinsStr;
-    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-        buttonPinsStr += String(ampButtonPins[i]);
-        if (i < MAX_AMPSWITCHS - 1) buttonPinsStr += ",";
+    logf(LOG_INFO, "Amp Switch Pins: %s", switchPinsStr);
+    
+    // Print ampButtonPins as comma-separated string with bounds checking
+    char buttonPinsStr[64] = "";
+    size_t buttonStrLen = 0;
+    for (int i = 0; i < MAX_AMPSWITCHS && i < 8; i++) {  // Extra bounds check
+        char pinStr[8];
+        int written = snprintf(pinStr, sizeof(pinStr), "%d", ampButtonPins[i]);
+        if (written < 0 || written >= (int)sizeof(pinStr)) {
+            logf(LOG_ERROR, "Button pin string formatting error at index %d", i);
+            break;
+        }
+        
+        // Check if we have space for the pin string plus comma
+        size_t needed = strlen(pinStr) + (i < MAX_AMPSWITCHS - 1 ? 1 : 0);
+        if (buttonStrLen + needed >= sizeof(buttonPinsStr) - 1) {
+            log(LOG_WARN, "Button pins string buffer overflow prevented");
+            break;
+        }
+        
+        strcat(buttonPinsStr, pinStr);
+        buttonStrLen += strlen(pinStr);
+        if (i < MAX_AMPSWITCHS - 1) {
+            strcat(buttonPinsStr, ",");
+            buttonStrLen++;
+        }
     }
-    log(LOG_INFO, "Amp Button Pins: " + buttonPinsStr);
+    logf(LOG_INFO, "Amp Button Pins: %s", buttonPinsStr);
 #else
     log(LOG_INFO, "Amp Switching: Disabled");
 #endif
