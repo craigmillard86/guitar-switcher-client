@@ -101,24 +101,24 @@ void printMemoryLeakInfo() {
     }
 }
 
-void handleDebugCommand(const String& cmd) {
-    if (cmd.equalsIgnoreCase("debug")) {
+void handleDebugCommand(const char* cmd) {
+    if (strcasecmp(cmd, "debug") == 0) {
         printDebugInfo();
-    } else if (cmd.equalsIgnoreCase("perf")) {
+    } else if (strcasecmp(cmd, "perf") == 0) {
         printPerformanceMetrics();
-    } else if (cmd.equalsIgnoreCase("memory")) {
+    } else if (strcasecmp(cmd, "memory") == 0) {
         printMemoryInfo();
         printMemoryLeakInfo();
-    } else if (cmd.equalsIgnoreCase("wifi")) {
+    } else if (strcasecmp(cmd, "wifi") == 0) {
         printWiFiStats();
-    } else if (cmd.equalsIgnoreCase("espnow")) {
+    } else if (strcasecmp(cmd, "espnow") == 0) {
         printESPNowStats();
-    } else if (cmd.equalsIgnoreCase("task")) {
+    } else if (strcasecmp(cmd, "task") == 0) {
         printTaskStats();
-    } else if (cmd.equalsIgnoreCase("debughelp")) {
+    } else if (strcasecmp(cmd, "debughelp") == 0) {
         printDebugHelp();
     } else {
-        log(LOG_WARN, "Unknown debug command: '" + cmd + "'");
+        logf(LOG_WARN, "Unknown debug command: '%s'", cmd);
         log(LOG_INFO, "Type 'debughelp' for debug commands");
     }
 }

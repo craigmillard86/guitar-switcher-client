@@ -263,7 +263,7 @@ void handleSerialCommand(const String& cmd) {
         if (debugCmd.isEmpty()) {
             debugCmd = "debug"; // Default to show all debug info
         }
-        handleDebugCommand(debugCmd);
+        handleDebugCommand(debugCmd.c_str());
     } else if (cmd.equalsIgnoreCase("midimap")) {
         log(LOG_INFO, "=== MIDI PROGRAM CHANGE MAP ===");
         for (int i = 0; i < MAX_AMPSWITCHS; i++) {

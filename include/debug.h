@@ -40,7 +40,7 @@ struct PerformanceMetrics {
 extern PerformanceMetrics perfMetrics;
 
 // Debug commands
-void handleDebugCommand(const String& cmd);
+void handleDebugCommand(const char* cmd);
 void printDebugHelp();
 
 // Performance monitoring functions

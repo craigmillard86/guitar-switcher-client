@@ -60,19 +60,23 @@ void printClientConfiguration() {
     log(LOG_INFO, "Amp Switching: Enabled");
     logf(LOG_INFO, "Max Amp Switches: %d", MAX_AMPSWITCHS);
     // Print ampSwitchPins as comma-separated string
-    String switchPinsStr;
+    char switchPinsStr[64] = "";
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-        switchPinsStr += String(ampSwitchPins[i]);
-        if (i < MAX_AMPSWITCHS - 1) switchPinsStr += ",";
+        char pinStr[8];
+        snprintf(pinStr, sizeof(pinStr), "%d", ampSwitchPins[i]);
+        strcat(switchPinsStr, pinStr);
+        if (i < MAX_AMPSWITCHS - 1) strcat(switchPinsStr, ",");
     }
-    log(LOG_INFO, "Amp Switch Pins: " + switchPinsStr);
+    logf(LOG_INFO, "Amp Switch Pins: %s", switchPinsStr);
     // Print ampButtonPins as comma-separated string
-    String buttonPinsStr;
+    char buttonPinsStr[64] = "";
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-        buttonPinsStr += String(ampButtonPins[i]);
-        if (i < MAX_AMPSWITCHS - 1) buttonPinsStr += ",";
+        char pinStr[8];
+        snprintf(pinStr, sizeof(pinStr), "%d", ampButtonPins[i]);
+        strcat(buttonPinsStr, pinStr);
+        if (i < MAX_AMPSWITCHS - 1) strcat(buttonPinsStr, ",");
     }
-    log(LOG_INFO, "Amp Button Pins: " + buttonPinsStr);
+    logf(LOG_INFO, "Amp Button Pins: %s", buttonPinsStr);
 #else
     log(LOG_INFO, "Amp Switching: Disabled");
 #endif
