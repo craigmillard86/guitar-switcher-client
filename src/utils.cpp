@@ -56,11 +56,25 @@ void logWithTimestamp(LogLevel level, const String& msg) {
     log(level, msg);
 }
 
-void printMAC(const uint8_t *mac, LogLevel level) {
+void printMAC(const uint8_t* mac, LogLevel level) {
+    // Input validation
+    if (mac == nullptr) {
+        log(LOG_ERROR, "MAC address pointer is null!");
+        return;
+    }
+    
+    // Validate log level is within expected range
+    if (level < LOG_ERROR || level > LOG_DEBUG) {
+        log(LOG_ERROR, "Invalid log level in printMAC");
+        return;
+    }
+    
     if (level <= currentLogLevel) {
         char timestamp[32];
         getUptimeString(timestamp, sizeof(timestamp));
         const char* levelStr = getLogLevelString(level);
+        
+        // MAC addresses are always 6 bytes - verify this assumption
         Serial.printf("[%s][%s] %02X:%02X:%02X:%02X:%02X:%02X\n", 
                      timestamp, levelStr,
                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -134,99 +148,80 @@ void checkSerialCommands() {
     }
 }
 
+// Forward declarations for command handler helper functions
+bool handleSystemCommands(const String& cmd);
+bool handleMIDICommands(const String& cmd);
+bool handleControlCommands(const String& cmd);
+bool handleTestCommands(const String& cmd);
+bool handleDebugCommands(const String& cmd);
+bool handleAmpChannelCommands(const String& cmd);
+void handlePinCommand();
+void showUnknownCommand(const String& cmd);
+
 void handleSerialCommand(const String& cmd) {
     if (cmd.isEmpty()) return;
 
     setStatusLedPattern(LED_DOUBLE_FLASH);
-    // System commands
+    
+    // Try each command category
+    if (handleSystemCommands(cmd)) return;
+    if (handleMIDICommands(cmd)) return;
+    if (handleControlCommands(cmd)) return;
+    if (handleTestCommands(cmd)) return;
+    if (handleDebugCommands(cmd)) return;
+    if (handleAmpChannelCommands(cmd)) return;
+    
+    // If no command matched, show unknown command message
+    showUnknownCommand(cmd);
+}
+
+bool handleSystemCommands(const String& cmd) {
     if (cmd.equalsIgnoreCase("help")) {
         printHelpMenu();
+        return true;
     } else if (cmd.equalsIgnoreCase("status")) {
         printSystemStatus();
+        return true;
     } else if (cmd.equalsIgnoreCase("memory")) {
         printMemoryInfo();
+        return true;
     } else if (cmd.equalsIgnoreCase("network")) {
         printNetworkStatus();
+        return true;
     } else if (cmd.equalsIgnoreCase("amp")) {
         printAmpChannelStatus();
+        return true;
     } else if (cmd.equalsIgnoreCase("pairing")) {
         printPairingStatus();
+        return true;
     } else if (cmd.equalsIgnoreCase("pins")) {
-        log(LOG_INFO, "=== PIN ASSIGNMENTS ===");
-        
-        // Build pin strings using char arrays to avoid String concatenation
-        char switchPinsStr[32] = "";
-        char buttonPinsStr[32] = "";
-        
-        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-            char pinStr[8];
-            snprintf(pinStr, sizeof(pinStr), "%u", ampSwitchPins[i]);
-            if (i > 0) strcat(switchPinsStr, ",");
-            strcat(switchPinsStr, pinStr);
-            
-            snprintf(pinStr, sizeof(pinStr), "%u", ampButtonPins[i]);
-            if (i > 0) strcat(buttonPinsStr, ",");
-            strcat(buttonPinsStr, pinStr);
-        }
-        
-        logf(LOG_INFO, "Amp Switch Pins: %s", switchPinsStr);
-        logf(LOG_INFO, "Amp Button Pins: %s", buttonPinsStr);
-        logf(LOG_INFO, "Status/Pairing LED Pin: %u", PAIRING_LED_PIN);
-        logf(LOG_INFO, "MIDI RX Pin: %u", MIDI_RX_PIN);
-        logf(LOG_INFO, "MIDI TX Pin: %u", MIDI_TX_PIN);
-        log(LOG_INFO, "======================");
+        handlePinCommand();
+        return true;
     } else if (cmd.equalsIgnoreCase("uptime")) {
         char uptime[32];
         getUptimeString(uptime, sizeof(uptime));
         logf(LOG_INFO, "Uptime: %s", uptime);
-    } else if (cmd.equalsIgnoreCase("restart") || cmd.equalsIgnoreCase("reset")) {
-        log(LOG_WARN, "Restarting ESP32...");
-        delay(1000);
-        ESP.restart();
-    } else if (cmd.equalsIgnoreCase("ota")) {
-        serialOtaTrigger = true;
-        log(LOG_INFO, "OTA mode triggered");
-    } else if (cmd.equalsIgnoreCase("pair")) {
-        clearPairingNVS();
-        pairingStatus = PAIR_REQUEST;
-        log(LOG_INFO, "Re-pairing requested!");
-    } else if (cmd.startsWith("setlog")) {
-        int level = cmd.substring(6).toInt();
-        if (level >= 0 && level <= 4) {
-            currentLogLevel = (LogLevel)level;
-            saveLogLevelToNVS(currentLogLevel); // Save the new log level
-            logf(LOG_INFO, "Log level set to: %s", getLogLevelString(currentLogLevel));
-        } else {
-            log(LOG_WARN, "Invalid log level. Use 0-4 (0=OFF, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG)");
-        }
-    } else if (cmd.equalsIgnoreCase("testled")) {
-        log(LOG_INFO, "Testing status LED...");
-        //blinkLED(STATUS_LED_PIN, 3, 200);
-        setStatusLedPattern(LED_TRIPLE_FLASH);
-    } else if (cmd.equalsIgnoreCase("testpairing")) {
-        log(LOG_INFO, "Testing pairing LED...");
-        for (int i = 0; i < 5; i++) {
-            ledcWrite(LEDC_CHANNEL_0, 512);
-            delay(100);
-            ledcWrite(LEDC_CHANNEL_0, 0);
-            delay(100);
-        }
-    } else if (cmd.equalsIgnoreCase("off")) {
-        setAmpChannel(0);
-        log(LOG_INFO, "All amp channels turned off");
-    } else if (cmd.toInt() > 0 && cmd.toInt() <= MAX_AMPSWITCHS) {
-        uint8_t ch = cmd.toInt();
-        setAmpChannel(ch);
-        logf(LOG_INFO, "Amp channel set to %u", ch);
-    } else if (cmd.length() == 2 && cmd[0] == 'b') {
-        int btn = cmd[1] - '0';
-        if (btn >= 1 && btn <= MAX_AMPSWITCHS) {
-            logf(LOG_INFO, "Simulating button %d press", btn);
-            setAmpChannel(btn);
-        } else {
-            logf(LOG_WARN, "Invalid button number. Use b1-b%d", MAX_AMPSWITCHS);
-        }
-    } else if (cmd.equalsIgnoreCase("midi")) {
+        return true;
+    } else if (cmd.equalsIgnoreCase("version")) {
+        logf(LOG_INFO, "Firmware Version: %s", FIRMWARE_VERSION);
+        logf(LOG_INFO, "Storage Version: %d", STORAGE_VERSION);
+        return true;
+    } else if (cmd.equalsIgnoreCase("buttons")) {
+        enableButtonChecking = !enableButtonChecking;
+        logf(LOG_INFO, "Button checking %s", enableButtonChecking ? "enabled" : "disabled");
+        return true;
+    } else if (cmd.equalsIgnoreCase("loglevel")) {
+        logf(LOG_INFO, "Current log level: %s (%u)", getLogLevelString(currentLogLevel), (uint8_t)currentLogLevel);
+        return true;
+    } else if (cmd.equalsIgnoreCase("config")) {
+        printClientConfiguration();
+        return true;
+    }
+    return false;
+}
+
+bool handleMIDICommands(const String& cmd) {
+    if (cmd.equalsIgnoreCase("midi")) {
         log(LOG_INFO, "=== MIDI INFORMATION ===");
         logf(LOG_INFO, "  Current MIDI Channel: %u (persistent, set via channel select mode)", currentMidiChannel);
         log(LOG_INFO, "  MIDI Thru: Enabled");
@@ -236,52 +231,181 @@ void handleSerialCommand(const String& cmd) {
             logf(LOG_INFO, "    Button %d: PC#%u", i+1, midiChannelMap[i]);
         }
         log(LOG_INFO, "  (Use 'chset' to change MIDI channel, 'midimap' for detailed mapping)");
-    } else if (cmd.equalsIgnoreCase("version")) {
-        logf(LOG_INFO, "Firmware Version: %s", FIRMWARE_VERSION);
-        logf(LOG_INFO, "Storage Version: %d", STORAGE_VERSION);
-    } else if (cmd.equalsIgnoreCase("buttons")) {
-        enableButtonChecking = !enableButtonChecking;
-        logf(LOG_INFO, "Button checking %s", enableButtonChecking ? "enabled" : "disabled");
-    } else if (cmd.equalsIgnoreCase("loglevel")) {
-        logf(LOG_INFO, "Current log level: %s (%u)", getLogLevelString(currentLogLevel), (uint8_t)currentLogLevel);
-    } else if (cmd.equalsIgnoreCase("config")) {
-        printClientConfiguration();
-    } else if (cmd.equalsIgnoreCase("clearlog")) {
-        clearLogLevelNVS();
-        currentLogLevel = LOG_INFO; // Reset to default
-        log(LOG_INFO, "Log level reset to default (INFO)");
-    } else if (cmd.equalsIgnoreCase("clearall")) {
-        log(LOG_WARN, "Clearing all NVS data...");
-        clearPairingNVS();
-        clearLogLevelNVS();
-        currentLogLevel = LOG_INFO; // Reset to default
-        pairingStatus = NOT_PAIRED;
-        log(LOG_INFO, "All NVS data cleared - pairing and log level reset to defaults");
-    } else if (cmd.startsWith("debug")) {
-        String debugCmd = cmd.substring(5);
-        debugCmd.trim();
-        if (debugCmd.isEmpty()) {
-            debugCmd = "debug"; // Default to show all debug info
-        }
-        handleDebugCommand(debugCmd.c_str());
+        return true;
     } else if (cmd.equalsIgnoreCase("midimap")) {
         log(LOG_INFO, "=== MIDI PROGRAM CHANGE MAP ===");
         for (int i = 0; i < MAX_AMPSWITCHS; i++) {
             logf(LOG_INFO, "Button %d: PC#%u", i+1, midiChannelMap[i]);
         }
         log(LOG_INFO, "==============================");
+        return true;
     } else if (cmd.equalsIgnoreCase("ch")) {
         logf(LOG_INFO, "Current MIDI Channel: %u (persistent, set via channel select mode)", currentMidiChannel);
+        return true;
     } else if (cmd.equalsIgnoreCase("chset")) {
         log(LOG_INFO, "To change MIDI channel: Hold Button 1 for 15s to enter channel select mode, then press to increment channel. Auto-saves after 10s of inactivity.");
-    } else {
-        logf(LOG_WARN, "Unknown command: '%s'", cmd.c_str());
-        log(LOG_INFO, "Type 'help' for available commands");
+        return true;
     }
+    return false;
 }
 
+bool handleControlCommands(const String& cmd) {
+    if (cmd.equalsIgnoreCase("restart") || cmd.equalsIgnoreCase("reset")) {
+        log(LOG_WARN, "Restarting ESP32...");
+        delay(1000);
+        ESP.restart();
+        return true;
+    } else if (cmd.equalsIgnoreCase("ota")) {
+        serialOtaTrigger = true;
+        log(LOG_INFO, "OTA mode triggered");
+        return true;
+    } else if (cmd.equalsIgnoreCase("pair")) {
+        clearPairingNVS();
+        pairingStatus = PAIR_REQUEST;
+        log(LOG_INFO, "Re-pairing requested!");
+        return true;
+    } else if (cmd.startsWith("setlog")) {
+        int level = cmd.substring(6).toInt();
+        if (level >= 0 && level <= 4) {
+            currentLogLevel = (LogLevel)level;
+            saveLogLevelToNVS(currentLogLevel);
+            logf(LOG_INFO, "Log level set to: %s", getLogLevelString(currentLogLevel));
+        } else {
+            log(LOG_WARN, "Invalid log level. Use 0-4 (0=OFF, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG)");
+        }
+        return true;
+    } else if (cmd.equalsIgnoreCase("clearlog")) {
+        clearLogLevelNVS();
+        currentLogLevel = LOG_INFO;
+        log(LOG_INFO, "Log level reset to default (INFO)");
+        return true;
+    } else if (cmd.equalsIgnoreCase("clearall")) {
+        log(LOG_WARN, "Clearing all NVS data...");
+        clearPairingNVS();
+        clearLogLevelNVS();
+        currentLogLevel = LOG_INFO;
+        pairingStatus = NOT_PAIRED;
+        log(LOG_INFO, "All NVS data cleared - pairing and log level reset to defaults");
+        return true;
+    }
+    return false;
+}
+
+bool handleTestCommands(const String& cmd) {
+    if (cmd.equalsIgnoreCase("testled")) {
+        log(LOG_INFO, "Testing status LED...");
+        setStatusLedPattern(LED_TRIPLE_FLASH);
+        return true;
+    } else if (cmd.equalsIgnoreCase("testpairing")) {
+        log(LOG_INFO, "Testing pairing LED...");
+        for (int i = 0; i < 5; i++) {
+            ledcWrite(LEDC_CHANNEL_0, 512);
+            delay(100);
+            ledcWrite(LEDC_CHANNEL_0, 0);
+            delay(100);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool handleDebugCommands(const String& cmd) {
+    if (cmd.startsWith("debug")) {
+        String debugCmd = cmd.substring(5);
+        debugCmd.trim();
+        if (debugCmd.isEmpty()) {
+            debugCmd = "debug";
+        }
+        handleDebugCommand(debugCmd.c_str());
+        return true;
+    }
+    return false;
+}
+
+bool handleAmpChannelCommands(const String& cmd) {
+    if (cmd.equalsIgnoreCase("off")) {
+        setAmpChannel(0);
+        log(LOG_INFO, "All amp channels turned off");
+        return true;
+    } else if (cmd.toInt() > 0 && cmd.toInt() <= MAX_AMPSWITCHS) {
+        uint8_t ch = cmd.toInt();
+        setAmpChannel(ch);
+        logf(LOG_INFO, "Amp channel set to %u", ch);
+        return true;
+    } else if (cmd.length() == 2 && cmd[0] == 'b') {
+        int btn = cmd[1] - '0';
+        if (btn >= 1 && btn <= MAX_AMPSWITCHS) {
+            logf(LOG_INFO, "Simulating button %d press", btn);
+            setAmpChannel(btn);
+        } else {
+            logf(LOG_WARN, "Invalid button number. Use b1-b%d", MAX_AMPSWITCHS);
+        }
+        return true;
+    }
+    return false;
+}
+
+void handlePinCommand() {
+    log(LOG_INFO, "=== PIN ASSIGNMENTS ===");
+    
+    // Build pin strings using char arrays to avoid String concatenation
+    char switchPinsStr[32] = "";
+    char buttonPinsStr[32] = "";
+    
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+        char pinStr[8];
+        snprintf(pinStr, sizeof(pinStr), "%u", ampSwitchPins[i]);
+        if (i > 0) strcat(switchPinsStr, ",");
+        strcat(switchPinsStr, pinStr);
+        
+        snprintf(pinStr, sizeof(pinStr), "%u", ampButtonPins[i]);
+        if (i > 0) strcat(buttonPinsStr, ",");
+        strcat(buttonPinsStr, pinStr);
+    }
+    
+    logf(LOG_INFO, "Amp Switch Pins: %s", switchPinsStr);
+    logf(LOG_INFO, "Amp Button Pins: %s", buttonPinsStr);
+    logf(LOG_INFO, "Status/Pairing LED Pin: %u", PAIRING_LED_PIN);
+    logf(LOG_INFO, "MIDI RX Pin: %u", MIDI_RX_PIN);
+    logf(LOG_INFO, "MIDI TX Pin: %u", MIDI_TX_PIN);
+    log(LOG_INFO, "======================");
+}
+
+void showUnknownCommand(const String& cmd) {
+    logf(LOG_WARN, "Unknown command: '%s'", cmd.c_str());
+    log(LOG_INFO, "Type 'help' for available commands");
+}
+
+// Helper functions for printing help menu sections
+void printHelpHeader();
+void printSystemCommandsHelp();
+void printMIDICommandsHelp();
+void printControlCommandsHelp();
+void printTestCommandsHelp();
+void printDebugCommandsHelp();
+void printAmpChannelCommandsHelp();
+void printLogLevelsHelp();
+void printExamplesHelp();
+void printHelpFooter();
+
 void printHelpMenu() {
+    printHelpHeader();
+    printSystemCommandsHelp();
+    printMIDICommandsHelp();
+    printControlCommandsHelp();
+    printTestCommandsHelp();
+    printDebugCommandsHelp();
+    printAmpChannelCommandsHelp();
+    printLogLevelsHelp();
+    printExamplesHelp();
+    printHelpFooter();
+}
+
+void printHelpHeader() {
     Serial.println(F("\n========== SERIAL COMMANDS =========="));
+}
+
+void printSystemCommandsHelp() {
     Serial.println(F("SYSTEM COMMANDS:"));
     Serial.println(F("  help        : Show this help menu"));
     Serial.println(F("  status      : Show complete system status"));
@@ -296,12 +420,18 @@ void printHelpMenu() {
     Serial.println(F("  loglevel    : Show current log level"));
     Serial.println(F("  clearlog    : Clear saved log level (reset to default)"));
     Serial.println(F(""));
+}
+
+void printMIDICommandsHelp() {
     Serial.println(F("MIDI COMMANDS:"));
     Serial.println(F("  midi        : Show current MIDI configuration and channel"));
     Serial.println(F("  midimap     : Show MIDI Program Change to channel mapping"));
     Serial.println(F("  ch          : Show the current MIDI channel (persistent, set via channel select mode)"));
     Serial.println(F("  chset       : Print instructions for entering channel select mode"));
     Serial.println(F(""));
+}
+
+void printControlCommandsHelp() {
     Serial.println(F("CONTROL COMMANDS:"));
     Serial.println(F("  restart     : Reboot the device"));
     Serial.println(F("  ota         : Enter OTA update mode"));
@@ -309,10 +439,16 @@ void printHelpMenu() {
     Serial.println(F("  setlogN     : Set log level (N=0-4)"));
     Serial.println(F("  clearall    : Clear all NVS data (pairing + log level)"));
     Serial.println(F(""));
+}
+
+void printTestCommandsHelp() {
     Serial.println(F("TEST COMMANDS:"));
     Serial.println(F("  testled     : Test status LED"));
     Serial.println(F("  testpairing : Test pairing LED"));
     Serial.println(F(""));
+}
+
+void printDebugCommandsHelp() {
     Serial.println(F("DEBUG COMMANDS:"));
     Serial.println(F("  debug       : Show complete debug info"));
     Serial.println(F("  debugperf   : Show performance metrics"));
@@ -322,20 +458,32 @@ void printHelpMenu() {
     Serial.println(F("  debugtask   : Show task stats"));
     Serial.println(F("  debughelp   : Show debug commands"));
     Serial.println(F(""));
+}
+
+void printAmpChannelCommandsHelp() {
     Serial.println(F("AMP CHANNEL COMMANDS:"));
     Serial.println(F("  1-4         : Switch to amp channel 1-4"));
     Serial.println(F("  b1-b4       : Simulate button press 1-4"));
     Serial.println(F("  off         : Turn all channels off"));
     Serial.println(F(""));
+}
+
+void printLogLevelsHelp() {
     Serial.println(F("LOG LEVELS:"));
     Serial.println(F("  0=OFF, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG"));
     Serial.println(F(""));
+}
+
+void printExamplesHelp() {
     Serial.println(F("EXAMPLES:"));
     Serial.println(F("  setlog3     : Show info and above logs"));
     Serial.println(F("  2           : Switch to channel 2"));
     Serial.println(F("  b3          : Simulate button 3 press"));
     Serial.println(F("  status      : Show system status"));
     Serial.println(F("  debug       : Show debug information"));
+}
+
+void printHelpFooter() {
     Serial.println(F("=====================================\n"));
 }
 
@@ -362,18 +510,40 @@ const char* getPairingStatusString(PairingStatus status) {
 }
 
 void getUptimeString(char* buffer, size_t bufferSize) {
+    // Input validation
+    if (buffer == nullptr || bufferSize == 0) {
+        log(LOG_ERROR, "Invalid buffer parameters in getUptimeString");
+        return;
+    }
+    
+    // Ensure minimum buffer size for basic output
+    if (bufferSize < 8) {
+        log(LOG_ERROR, "Buffer too small for uptime string");
+        if (bufferSize > 0) buffer[0] = '\0';  // Null terminate if possible
+        return;
+    }
+    
     unsigned long uptime = millis();
     unsigned long seconds = uptime / 1000;
     unsigned long minutes = seconds / 60;
     unsigned long hours = minutes / 60;
     unsigned long days = hours / 24;
     
+    int result;
     if (days > 0) {
-        snprintf(buffer, bufferSize, "%lud %02lu:%02lu:%02lu", days, hours % 24, minutes % 60, seconds % 60);
+        result = snprintf(buffer, bufferSize, "%lud %02lu:%02lu:%02lu", days, hours % 24, minutes % 60, seconds % 60);
     } else if (hours > 0) {
-        snprintf(buffer, bufferSize, "%02lu:%02lu:%02lu", hours, minutes % 60, seconds % 60);
+        result = snprintf(buffer, bufferSize, "%02lu:%02lu:%02lu", hours, minutes % 60, seconds % 60);
     } else {
-        snprintf(buffer, bufferSize, "%02lu:%02lu", minutes, seconds % 60);
+        result = snprintf(buffer, bufferSize, "%02lu:%02lu", minutes, seconds % 60);
+    }
+    
+    // Check for snprintf truncation or error
+    if (result < 0) {
+        log(LOG_ERROR, "Error formatting uptime string");
+        buffer[0] = '\0';
+    } else if (result >= (int)bufferSize) {
+        logf(LOG_WARN, "Uptime string truncated: needed %d bytes, had %zu", result, bufferSize);
     }
 }
 

@@ -102,6 +102,19 @@ void printMemoryLeakInfo() {
 }
 
 void handleDebugCommand(const char* cmd) {
+    // Input validation - ensure cmd is not null
+    if (cmd == nullptr) {
+        log(LOG_ERROR, "Debug command pointer is null!");
+        return;
+    }
+    
+    // Validate command length to prevent buffer overflow
+    size_t cmdLen = strlen(cmd);
+    if (cmdLen == 0 || cmdLen > 32) {
+        logf(LOG_ERROR, "Invalid debug command length: %zu", cmdLen);
+        return;
+    }
+    
     if (strcasecmp(cmd, "debug") == 0) {
         printDebugInfo();
     } else if (strcasecmp(cmd, "perf") == 0) {
@@ -137,9 +150,33 @@ void printDebugHelp() {
 
 // Performance monitoring functions
 void updatePerformanceMetrics(unsigned long loopTime) {
+    // Validate input to prevent overflow/underflow issues
+    if (loopTime > 10000) {  // Sanity check: loop time shouldn't exceed 10 seconds
+        logf(LOG_WARN, "Suspicious loop time detected: %lums", loopTime);
+        return;
+    }
+    
+    // Prevent overflow on loop count
+    if (perfMetrics.loopCount == ULONG_MAX) {
+        logf(LOG_WARN, "Performance metrics loop count overflow, resetting");
+        perfMetrics.loopCount = 0;
+        perfMetrics.totalLoopTime = 0;
+        perfMetrics.maxLoopTime = 0;
+        perfMetrics.minLoopTime = 0;
+        perfMetrics.startTime = millis();
+    }
+    
     perfMetrics.loopCount++;
     perfMetrics.lastLoopTime = loopTime;
-    perfMetrics.totalLoopTime += loopTime;
+    
+    // Prevent totalLoopTime overflow
+    if (perfMetrics.totalLoopTime > (ULONG_MAX - loopTime)) {
+        logf(LOG_WARN, "Performance metrics total time overflow, resetting");
+        perfMetrics.totalLoopTime = loopTime;
+        perfMetrics.loopCount = 1;
+    } else {
+        perfMetrics.totalLoopTime += loopTime;
+    }
     
     if (loopTime > perfMetrics.maxLoopTime) {
         perfMetrics.maxLoopTime = loopTime;

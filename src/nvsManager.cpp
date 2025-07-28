@@ -20,9 +20,26 @@
 #include <Preferences.h>
 
 void saveMidiMapToNVS() {
+    // Validate midiChannelMap array before saving
+    bool validMap = true;
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+        if (midiChannelMap[i] > 127) {  // MIDI program change values are 0-127
+            logf(LOG_ERROR, "Invalid MIDI program %u at index %d, cannot save", midiChannelMap[i], i);
+            validMap = false;
+        }
+    }
+    
+    if (!validMap) {
+        log(LOG_ERROR, "MIDI map contains invalid values, save aborted");
+        return;
+    }
+    
     Preferences nvs;
     if (nvs.begin("midi_map", false)) {
-        nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+        size_t written = nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+        if (written != MAX_AMPSWITCHS) {
+            logf(LOG_ERROR, "MIDI map save incomplete: wrote %zu bytes, expected %d", written, MAX_AMPSWITCHS);
+        }
         nvs.putInt("version", STORAGE_VERSION);
         nvs.end();
         log(LOG_INFO, "MIDI channel map saved to NVS");
@@ -36,20 +53,50 @@ void loadMidiMapFromNVS() {
     if (nvs.begin("midi_map", true)) {
         if (nvs.getInt("version", 0) != STORAGE_VERSION) {
             // Version mismatch: reset to defaults and save
-            for (int i = 0; i < MAX_AMPSWITCHS; i++) midiChannelMap[i] = i;
+            for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+                midiChannelMap[i] = (i < 128) ? i : 0;  // Ensure valid MIDI values
+            }
             nvs.end();
             nvs.begin("midi_map", false);
             nvs.putBytes("map", midiChannelMap, MAX_AMPSWITCHS);
             nvs.putInt("version", STORAGE_VERSION);
             nvs.end();
             log(LOG_WARN, "MIDI map NVS version mismatch, resetting to defaults");
-        } else if (nvs.getBytesLength("map") == MAX_AMPSWITCHS) {
-            nvs.getBytes("map", midiChannelMap, MAX_AMPSWITCHS);
-            nvs.end();
-            log(LOG_INFO, "MIDI channel map loaded from NVS");
         } else {
-            nvs.end();
+            size_t expectedSize = MAX_AMPSWITCHS;
+            size_t actualSize = nvs.getBytesLength("map");
+            
+            if (actualSize == expectedSize) {
+                size_t read = nvs.getBytes("map", midiChannelMap, MAX_AMPSWITCHS);
+                if (read != expectedSize) {
+                    logf(LOG_ERROR, "MIDI map read incomplete: got %zu bytes, expected %zu", read, expectedSize);
+                }
+                
+                // Validate loaded values
+                bool validMap = true;
+                for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+                    if (midiChannelMap[i] > 127) {
+                        logf(LOG_WARN, "Invalid MIDI program %u at index %d, resetting to 0", midiChannelMap[i], i);
+                        midiChannelMap[i] = 0;
+                        validMap = false;
+                    }
+                }
+                
+                if (!validMap) {
+                    // Re-save with corrected values
+                    nvs.end();
+                    saveMidiMapToNVS();
+                } else {
+                    nvs.end();
+                    log(LOG_INFO, "MIDI channel map loaded from NVS");
+                }
+            } else {
+                logf(LOG_ERROR, "MIDI map size mismatch: got %zu bytes, expected %zu", actualSize, expectedSize);
+                nvs.end();
+            }
         }
+    } else {
+        log(LOG_ERROR, "Failed to open MIDI map NVS for reading");
     }
 }
 

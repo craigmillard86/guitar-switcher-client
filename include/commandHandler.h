@@ -19,3 +19,24 @@ void handleCommand(uint8_t commandType, uint8_t value);
 void setAmpChannel(uint8_t channel);
 void checkAmpChannelButtons();
 void handleProgramChange(byte midiChannel, byte program);
+
+// Helper functions for button processing (broken down from large functions)
+bool handleMidiLearnTimeout();
+void processButtonState(int buttonIndex, uint8_t reading, 
+                       unsigned long* lastDebounceTime, uint8_t* lastButtonState,
+                       bool* buttonPressed, unsigned long* buttonPressStart,
+                       bool* buttonLongPressHandled);
+void handleButtonPress(int buttonIndex, bool* buttonPressed, unsigned long* buttonPressStart,
+                      bool* buttonLongPressHandled);
+void handleButtonHeld(int buttonIndex, unsigned long held);
+void handleButtonRelease(int buttonIndex, unsigned long held, bool* buttonPressed,
+                        bool* buttonLongPressHandled);
+
+// Shared button functions
+void resetMilestoneFlags();
+void handleLedFeedback(unsigned long held, const char* buttonName);
+void enterChannelSelectMode();
+void handleChannelSelection();
+void handleChannelSelectAutoSave();
+void showChannelConfirmation(uint8_t channel);
+void updateChannelConfirmation();

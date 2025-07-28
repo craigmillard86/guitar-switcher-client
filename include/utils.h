@@ -36,6 +36,28 @@ void checkSerialCommands();
 void printHelpMenu();
 void handleSerialCommand(const String& cmd);
 
+// Command handler helper functions (broken down from large functions)
+bool handleSystemCommands(const String& cmd);
+bool handleMIDICommands(const String& cmd);
+bool handleControlCommands(const String& cmd);
+bool handleTestCommands(const String& cmd);
+bool handleDebugCommands(const String& cmd);
+bool handleAmpChannelCommands(const String& cmd);
+void handlePinCommand();
+void showUnknownCommand(const String& cmd);
+
+// Help menu helper functions
+void printHelpHeader();
+void printSystemCommandsHelp();
+void printMIDICommandsHelp();
+void printControlCommandsHelp();
+void printTestCommandsHelp();
+void printDebugCommandsHelp();
+void printAmpChannelCommandsHelp();
+void printLogLevelsHelp();
+void printExamplesHelp();
+void printHelpFooter();
+
 // Utility functions - Memory optimized versions
 const char* getLogLevelString(LogLevel level);
 const char* getPairingStatusString(PairingStatus status);
