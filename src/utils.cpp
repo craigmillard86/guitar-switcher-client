@@ -27,12 +27,13 @@ extern unsigned long lastMemoryCheck;
 uint32_t minFreeHeap = UINT32_MAX;
 // unsigned long lastMemoryCheck = 0; // Removed to avoid multiple definition
 
-// Enhanced logging with timestamps and proper log levels
+// Enhanced logging with timestamps and proper log levels - Memory optimized
 void log(LogLevel level, const String& msg) {
     if (level <= currentLogLevel) {
-        String timestamp = getUptimeString();
-        String levelStr = getLogLevelString(level);
-        Serial.printf("[%s][%s] %s\n", timestamp.c_str(), levelStr.c_str(), msg.c_str());
+        char timestamp[32];
+        getUptimeString(timestamp, sizeof(timestamp));
+        const char* levelStr = getLogLevelString(level);
+        Serial.printf("[%s][%s] %s\n", timestamp, levelStr, msg.c_str());
     }
 }
 
@@ -43,7 +44,11 @@ void logf(LogLevel level, const char* format, ...) {
         va_start(args, format);
         vsnprintf(buffer, sizeof(buffer), format, args);
         va_end(args);
-        log(level, String(buffer));
+        
+        char timestamp[32];
+        getUptimeString(timestamp, sizeof(timestamp));
+        const char* levelStr = getLogLevelString(level);
+        Serial.printf("[%s][%s] %s\n", timestamp, levelStr, buffer);
     }
 }
 
@@ -52,10 +57,14 @@ void logWithTimestamp(LogLevel level, const String& msg) {
 }
 
 void printMAC(const uint8_t *mac, LogLevel level) {
-    char macStr[18];
-    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    log(level, String(macStr));
+    if (level <= currentLogLevel) {
+        char timestamp[32];
+        getUptimeString(timestamp, sizeof(timestamp));
+        const char* levelStr = getLogLevelString(level);
+        Serial.printf("[%s][%s] %02X:%02X:%02X:%02X:%02X:%02X\n", 
+                     timestamp, levelStr,
+                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
 }
 
 void blinkLED(uint8_t pin, int times, int delayMs) {
@@ -70,9 +79,13 @@ void blinkLED(uint8_t pin, int times, int delayMs) {
 // System status functions
 void printSystemStatus() {
     log(LOG_INFO, "=== SYSTEM STATUS ===");
-    log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
-    log(LOG_INFO, "Board ID: " + String(BOARD_ID));
-    log(LOG_INFO, "Uptime: " + getUptimeString());
+    logf(LOG_INFO, "Firmware Version: %s", FIRMWARE_VERSION);
+    logf(LOG_INFO, "Board ID: %d", BOARD_ID);
+    
+    char uptime[32];
+    getUptimeString(uptime, sizeof(uptime));
+    logf(LOG_INFO, "Uptime: %s", uptime);
+    
     printMemoryInfo();
     printNetworkStatus();
     printAmpChannelStatus();
@@ -86,13 +99,13 @@ void printMemoryInfo() {
     uint32_t usedHeap = totalHeap - freeHeap;
     float usagePercent = (float)usedHeap / totalHeap * 100.0;
     
-    log(LOG_INFO, "Memory - Free: " + String(freeHeap) + "B, Used: " + String(usedHeap) + "B (" + String(usagePercent, 1) + "%)");
-    log(LOG_INFO, "Min Free Heap: " + String(minFreeHeap) + "B");
+    logf(LOG_INFO, "Memory - Free: %uB, Used: %uB (%.1f%%)", freeHeap, usedHeap, usagePercent);
+    logf(LOG_INFO, "Min Free Heap: %uB", minFreeHeap);
 }
 
 void printNetworkStatus() {
-    log(LOG_INFO, "WiFi Mode: " + String(WiFi.getMode()));
-    log(LOG_INFO, "Current Channel: " + String(currentChannel));
+    logf(LOG_INFO, "WiFi Mode: %d", WiFi.getMode());
+    logf(LOG_INFO, "Current Channel: %u", currentChannel);
     log(LOG_INFO, "Client MAC: ");
     printMAC(clientMacAddress, LOG_INFO);
     log(LOG_INFO, "Server MAC: ");
@@ -100,15 +113,15 @@ void printNetworkStatus() {
 }
 
 void printAmpChannelStatus() {
-    log(LOG_INFO, "Current Amp Channel: " + String(currentAmpChannel));
-    log(LOG_INFO, "Channel Pins: " + String(ampSwitchPins[0]) + "," + String(ampSwitchPins[1]) + "," + 
-                   String(ampSwitchPins[2]) + "," + String(ampSwitchPins[3]));
-    log(LOG_INFO, "Button Pins: " + String(ampButtonPins[0]) + "," + String(ampButtonPins[1]) + "," + 
-                   String(ampButtonPins[2]) + "," + String(ampButtonPins[3]));
+    logf(LOG_INFO, "Current Amp Channel: %u", currentAmpChannel);
+    logf(LOG_INFO, "Channel Pins: %u,%u,%u,%u", 
+         ampSwitchPins[0], ampSwitchPins[1], ampSwitchPins[2], ampSwitchPins[3]);
+    logf(LOG_INFO, "Button Pins: %u,%u,%u,%u", 
+         ampButtonPins[0], ampButtonPins[1], ampButtonPins[2], ampButtonPins[3]);
 }
 
 void printPairingStatus() {
-    log(LOG_INFO, "Pairing Status: " + getPairingStatusString(pairingStatus));
+    logf(LOG_INFO, "Pairing Status: %s", getPairingStatusString(pairingStatus));
 }
 
 // Enhanced serial command handling
@@ -139,25 +152,33 @@ void handleSerialCommand(const String& cmd) {
     } else if (cmd.equalsIgnoreCase("pairing")) {
         printPairingStatus();
     } else if (cmd.equalsIgnoreCase("pins")) {
-        String switchPinsStr;
-        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-            switchPinsStr += String(ampSwitchPins[i]);
-            if (i < MAX_AMPSWITCHS - 1) switchPinsStr += ",";
-        }
-        String buttonPinsStr;
-        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-            buttonPinsStr += String(ampButtonPins[i]);
-            if (i < MAX_AMPSWITCHS - 1) buttonPinsStr += ",";
-        }
         log(LOG_INFO, "=== PIN ASSIGNMENTS ===");
-        log(LOG_INFO, "Amp Switch Pins: " + switchPinsStr);
-        log(LOG_INFO, "Amp Button Pins: " + buttonPinsStr);
-        log(LOG_INFO, String("Status/Pairing LED Pin: ") + String(PAIRING_LED_PIN));
-        log(LOG_INFO, String("MIDI RX Pin: ") + String(MIDI_RX_PIN));
-        log(LOG_INFO, String("MIDI TX Pin: ") + String(MIDI_TX_PIN));
+        
+        // Build pin strings using char arrays to avoid String concatenation
+        char switchPinsStr[32] = "";
+        char buttonPinsStr[32] = "";
+        
+        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+            char pinStr[8];
+            snprintf(pinStr, sizeof(pinStr), "%u", ampSwitchPins[i]);
+            if (i > 0) strcat(switchPinsStr, ",");
+            strcat(switchPinsStr, pinStr);
+            
+            snprintf(pinStr, sizeof(pinStr), "%u", ampButtonPins[i]);
+            if (i > 0) strcat(buttonPinsStr, ",");
+            strcat(buttonPinsStr, pinStr);
+        }
+        
+        logf(LOG_INFO, "Amp Switch Pins: %s", switchPinsStr);
+        logf(LOG_INFO, "Amp Button Pins: %s", buttonPinsStr);
+        logf(LOG_INFO, "Status/Pairing LED Pin: %u", PAIRING_LED_PIN);
+        logf(LOG_INFO, "MIDI RX Pin: %u", MIDI_RX_PIN);
+        logf(LOG_INFO, "MIDI TX Pin: %u", MIDI_TX_PIN);
         log(LOG_INFO, "======================");
     } else if (cmd.equalsIgnoreCase("uptime")) {
-        log(LOG_INFO, "Uptime: " + getUptimeString());
+        char uptime[32];
+        getUptimeString(uptime, sizeof(uptime));
+        logf(LOG_INFO, "Uptime: %s", uptime);
     } else if (cmd.equalsIgnoreCase("restart") || cmd.equalsIgnoreCase("reset")) {
         log(LOG_WARN, "Restarting ESP32...");
         delay(1000);
@@ -174,7 +195,7 @@ void handleSerialCommand(const String& cmd) {
         if (level >= 0 && level <= 4) {
             currentLogLevel = (LogLevel)level;
             saveLogLevelToNVS(currentLogLevel); // Save the new log level
-            log(LOG_INFO, "Log level set to: " + getLogLevelString(currentLogLevel));
+            logf(LOG_INFO, "Log level set to: %s", getLogLevelString(currentLogLevel));
         } else {
             log(LOG_WARN, "Invalid log level. Use 0-4 (0=OFF, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG)");
         }
@@ -196,33 +217,33 @@ void handleSerialCommand(const String& cmd) {
     } else if (cmd.toInt() > 0 && cmd.toInt() <= MAX_AMPSWITCHS) {
         uint8_t ch = cmd.toInt();
         setAmpChannel(ch);
-        log(LOG_INFO, "Amp channel set to " + String(ch));
+        logf(LOG_INFO, "Amp channel set to %u", ch);
     } else if (cmd.length() == 2 && cmd[0] == 'b') {
         int btn = cmd[1] - '0';
         if (btn >= 1 && btn <= MAX_AMPSWITCHS) {
-            log(LOG_INFO, "Simulating button " + String(btn) + " press");
+            logf(LOG_INFO, "Simulating button %d press", btn);
             setAmpChannel(btn);
         } else {
-            log(LOG_WARN, "Invalid button number. Use b1-b" + String(MAX_AMPSWITCHS));
+            logf(LOG_WARN, "Invalid button number. Use b1-b%d", MAX_AMPSWITCHS);
         }
     } else if (cmd.equalsIgnoreCase("midi")) {
-        log(LOG_INFO, "MIDI Status:");
-        log(LOG_INFO, String("  Current MIDI Channel: ") + String(currentMidiChannel) + " (persistent, set via channel select mode)");
-        log(LOG_INFO, String("  MIDI Thru: Enabled"));
-        log(LOG_INFO, String("  MIDI Pins - RX: ") + String(MIDI_RX_PIN) + ", TX: " + String(MIDI_TX_PIN));
-        log(LOG_INFO, String("  Program Change Mapping:"));
+        log(LOG_INFO, "=== MIDI INFORMATION ===");
+        logf(LOG_INFO, "  Current MIDI Channel: %u (persistent, set via channel select mode)", currentMidiChannel);
+        log(LOG_INFO, "  MIDI Thru: Enabled");
+        logf(LOG_INFO, "  MIDI Pins - RX: %u, TX: %u", MIDI_RX_PIN, MIDI_TX_PIN);
+        log(LOG_INFO, "  Program Change Mapping:");
         for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-            log(LOG_INFO, String("    Button ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
+            logf(LOG_INFO, "    Button %d: PC#%u", i+1, midiChannelMap[i]);
         }
         log(LOG_INFO, "  (Use 'chset' to change MIDI channel, 'midimap' for detailed mapping)");
     } else if (cmd.equalsIgnoreCase("version")) {
-        log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
-        log(LOG_INFO, "Storage Version: " + String(STORAGE_VERSION));
+        logf(LOG_INFO, "Firmware Version: %s", FIRMWARE_VERSION);
+        logf(LOG_INFO, "Storage Version: %d", STORAGE_VERSION);
     } else if (cmd.equalsIgnoreCase("buttons")) {
         enableButtonChecking = !enableButtonChecking;
-        log(LOG_INFO, "Button checking " + String(enableButtonChecking ? "enabled" : "disabled"));
+        logf(LOG_INFO, "Button checking %s", enableButtonChecking ? "enabled" : "disabled");
     } else if (cmd.equalsIgnoreCase("loglevel")) {
-        log(LOG_INFO, "Current log level: " + getLogLevelString(currentLogLevel) + " (" + String((uint8_t)currentLogLevel) + ")");
+        logf(LOG_INFO, "Current log level: %s (%u)", getLogLevelString(currentLogLevel), (uint8_t)currentLogLevel);
     } else if (cmd.equalsIgnoreCase("config")) {
         printClientConfiguration();
     } else if (cmd.equalsIgnoreCase("clearlog")) {
@@ -246,15 +267,15 @@ void handleSerialCommand(const String& cmd) {
     } else if (cmd.equalsIgnoreCase("midimap")) {
         log(LOG_INFO, "=== MIDI PROGRAM CHANGE MAP ===");
         for (int i = 0; i < MAX_AMPSWITCHS; i++) {
-            log(LOG_INFO, String("Button ") + String(i+1) + ": PC#" + String(midiChannelMap[i]));
+            logf(LOG_INFO, "Button %d: PC#%u", i+1, midiChannelMap[i]);
         }
         log(LOG_INFO, "==============================");
     } else if (cmd.equalsIgnoreCase("ch")) {
-        log(LOG_INFO, String("Current MIDI Channel: ") + String(currentMidiChannel) + " (persistent, set via channel select mode)");
+        logf(LOG_INFO, "Current MIDI Channel: %u (persistent, set via channel select mode)", currentMidiChannel);
     } else if (cmd.equalsIgnoreCase("chset")) {
         log(LOG_INFO, "To change MIDI channel: Hold Button 1 for 15s to enter channel select mode, then press to increment channel. Auto-saves after 10s of inactivity.");
     } else {
-        log(LOG_WARN, "Unknown command: '" + cmd + "'");
+        logf(LOG_WARN, "Unknown command: '%s'", cmd.c_str());
         log(LOG_INFO, "Type 'help' for available commands");
     }
 }
@@ -318,8 +339,8 @@ void printHelpMenu() {
     Serial.println(F("=====================================\n"));
 }
 
-// Utility functions
-String getLogLevelString(LogLevel level) {
+// Utility functions - Memory optimized
+const char* getLogLevelString(LogLevel level) {
     switch (level) {
         case LOG_NONE: return "NONE";
         case LOG_ERROR: return "ERROR";
@@ -330,7 +351,7 @@ String getLogLevelString(LogLevel level) {
     }
 }
 
-String getPairingStatusString(PairingStatus status) {
+const char* getPairingStatusString(PairingStatus status) {
     switch (status) {
         case NOT_PAIRED: return "NOT_PAIRED";
         case PAIR_REQUEST: return "PAIR_REQUEST";
@@ -340,22 +361,20 @@ String getPairingStatusString(PairingStatus status) {
     }
 }
 
-String getUptimeString() {
+void getUptimeString(char* buffer, size_t bufferSize) {
     unsigned long uptime = millis();
     unsigned long seconds = uptime / 1000;
     unsigned long minutes = seconds / 60;
     unsigned long hours = minutes / 60;
     unsigned long days = hours / 24;
     
-    char buffer[32];
     if (days > 0) {
-        snprintf(buffer, sizeof(buffer), "%lud %02lu:%02lu:%02lu", days, hours % 24, minutes % 60, seconds % 60);
+        snprintf(buffer, bufferSize, "%lud %02lu:%02lu:%02lu", days, hours % 24, minutes % 60, seconds % 60);
     } else if (hours > 0) {
-        snprintf(buffer, sizeof(buffer), "%02lu:%02lu:%02lu", hours, minutes % 60, seconds % 60);
+        snprintf(buffer, bufferSize, "%02lu:%02lu:%02lu", hours, minutes % 60, seconds % 60);
     } else {
-        snprintf(buffer, sizeof(buffer), "%02lu:%02lu", minutes, seconds % 60);
+        snprintf(buffer, bufferSize, "%02lu:%02lu", minutes, seconds % 60);
     }
-    return String(buffer);
 }
 
 uint32_t getFreeHeap() {

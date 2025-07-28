@@ -36,10 +36,11 @@ void checkSerialCommands();
 void printHelpMenu();
 void handleSerialCommand(const String& cmd);
 
-// Utility functions
-String getLogLevelString(LogLevel level);
-String getPairingStatusString(PairingStatus status);
-String getUptimeString();
+// Utility functions - Memory optimized versions
+const char* getLogLevelString(LogLevel level);
+const char* getPairingStatusString(PairingStatus status);
+void getUptimeString(char* buffer, size_t bufferSize);
+
 uint32_t getFreeHeap();
 uint32_t getMinFreeHeap();
 

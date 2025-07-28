@@ -39,31 +39,31 @@ void printPerformanceMetrics() {
     float avgLoopTime = perfMetrics.loopCount > 0 ? (float)perfMetrics.totalLoopTime / perfMetrics.loopCount : 0;
     
     log(LOG_INFO, "Performance Metrics:");
-    log(LOG_INFO, "  Loop Count: " + String(perfMetrics.loopCount));
-    log(LOG_INFO, "  Last Loop Time: " + String(perfMetrics.lastLoopTime) + "ms");
-    log(LOG_INFO, "  Max Loop Time: " + String(perfMetrics.maxLoopTime) + "ms");
-    log(LOG_INFO, "  Min Loop Time: " + String(perfMetrics.minLoopTime) + "ms");
-    log(LOG_INFO, "  Avg Loop Time: " + String(avgLoopTime, 2) + "ms");
-    log(LOG_INFO, "  Uptime: " + String(uptime) + "ms");
+    logf(LOG_INFO, "  Loop Count: %lu", perfMetrics.loopCount);
+    logf(LOG_INFO, "  Last Loop Time: %lums", perfMetrics.lastLoopTime);
+    logf(LOG_INFO, "  Max Loop Time: %lums", perfMetrics.maxLoopTime);
+    logf(LOG_INFO, "  Min Loop Time: %lums", perfMetrics.minLoopTime);
+    logf(LOG_INFO, "  Avg Loop Time: %.2fms", avgLoopTime);
+    logf(LOG_INFO, "  Uptime: %lums", uptime);
 }
 
 void printTaskStats() {
     log(LOG_INFO, "Task Statistics:");
-    log(LOG_INFO, "  Free Stack: " + String(uxTaskGetStackHighWaterMark(NULL)) + " bytes");
-    log(LOG_INFO, "  CPU Usage: " + String(100 - (getFreeHeap() * 100 / heap_caps_get_total_size(MALLOC_CAP_8BIT)), 1) + "%");
+    logf(LOG_INFO, "  Free Stack: %lu bytes", uxTaskGetStackHighWaterMark(NULL));
+    logf(LOG_INFO, "  CPU Usage: %.1f%%", 100 - (getFreeHeap() * 100 / heap_caps_get_total_size(MALLOC_CAP_8BIT)));
 }
 
 void printWiFiStats() {
     log(LOG_INFO, "WiFi Statistics:");
-    log(LOG_INFO, "  Mode: " + String(WiFi.getMode()));
-    log(LOG_INFO, "  Channel: " + String(currentChannel));
-    log(LOG_INFO, "  RSSI: " + String(WiFi.RSSI()) + " dBm");
+    logf(LOG_INFO, "  Mode: %d", WiFi.getMode());
+    logf(LOG_INFO, "  Channel: %u", currentChannel);
+    logf(LOG_INFO, "  RSSI: %d dBm", WiFi.RSSI());
     log(LOG_INFO, "  Power Mode: Active");
 }
 
 void printESPNowStats() {
     log(LOG_INFO, "ESP-NOW Statistics:");
-    log(LOG_INFO, "  Pairing Status: " + getPairingStatusString(pairingStatus));
+    logf(LOG_INFO, "  Pairing Status: %s", getPairingStatusString(pairingStatus));
     log(LOG_INFO, "  Peers: 1");
     log(LOG_INFO, "  Max Peers: 20");
 }
@@ -76,7 +76,7 @@ void updateMemoryStats() {
     }
     
     if (currentFreeHeap < lastFreeHeap) {
-        log(LOG_DEBUG, "Memory decreased: " + String(lastFreeHeap - currentFreeHeap) + "B");
+        logf(LOG_DEBUG, "Memory decreased: %luB", lastFreeHeap - currentFreeHeap);
     }
     
     lastFreeHeap = currentFreeHeap;
@@ -88,9 +88,9 @@ void printMemoryLeakInfo() {
     int32_t memoryChange = currentFreeHeap - initialFreeHeap;
     
     log(LOG_INFO, "Memory Leak Analysis:");
-    log(LOG_INFO, "  Initial Free Heap: " + String(initialFreeHeap) + "B");
-    log(LOG_INFO, "  Current Free Heap: " + String(currentFreeHeap) + "B");
-    log(LOG_INFO, "  Memory Change: " + String(memoryChange) + "B");
+    logf(LOG_INFO, "  Initial Free Heap: %luB", initialFreeHeap);
+    logf(LOG_INFO, "  Current Free Heap: %luB", currentFreeHeap);
+    logf(LOG_INFO, "  Memory Change: %ldB", memoryChange);
     
     if (memoryChange < -1000) {
         log(LOG_WARN, "  Potential memory leak detected!");

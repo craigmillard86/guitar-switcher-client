@@ -53,12 +53,12 @@ String getClientTypeString() {
 
 void printClientConfiguration() {
     log(LOG_INFO, "=== CLIENT CONFIGURATION ===");
-    log(LOG_INFO, String("Client Type: ") + getClientTypeString());
-    log(LOG_INFO, String("Device Name: ") + deviceName);
+    logf(LOG_INFO, "Client Type: %s", getClientTypeString());
+    logf(LOG_INFO, "Device Name: %s", deviceName);
     
 #if HAS_AMP_SWITCHING
     log(LOG_INFO, "Amp Switching: Enabled");
-    log(LOG_INFO, "Max Amp Switches: " + String(MAX_AMPSWITCHS));
+    logf(LOG_INFO, "Max Amp Switches: %d", MAX_AMPSWITCHS);
     // Print ampSwitchPins as comma-separated string
     String switchPinsStr;
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {

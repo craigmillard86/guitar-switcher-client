@@ -96,23 +96,23 @@ void handleLedFeedback(unsigned long held, const char* buttonName) {
     if (held >= 5000 && !milestone5s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone5s = true;
-        log(LOG_INFO, String(buttonName) + " - 5s held - LED feedback");
+        logf(LOG_INFO, "%s - 5s held - LED feedback", buttonName);
     } else if (held >= 10000 && !milestone10s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone10s = true;
-        log(LOG_INFO, String(buttonName) + " - 10s held - MIDI Learn ready");
+        logf(LOG_INFO, "%s - 10s held - MIDI Learn ready", buttonName);
     } else if (held >= 15000 && !milestone15s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone15s = true;
-        log(LOG_INFO, String(buttonName) + " - 15s held - Channel Select ready");
+        logf(LOG_INFO, "%s - 15s held - Channel Select ready", buttonName);
     } else if (held >= 20000 && !milestone20s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone20s = true;
-        log(LOG_INFO, String(buttonName) + " - 20s held - LED feedback");
+        logf(LOG_INFO, "%s - 20s held - LED feedback", buttonName);
     } else if (held >= 25000 && !milestone25s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone25s = true;
-        log(LOG_INFO, String(buttonName) + " - 25s held - LED feedback");
+        logf(LOG_INFO, "%s - 25s held - LED feedback", buttonName);
     }
 }
 
@@ -132,8 +132,7 @@ void handleChannelSelection() {
     buttonPressCount++;
     tempMidiChannel = ((buttonPressCount - 1) % 16) + 1;
     lastChannelButtonPress = millis(); // Update the last button press time
-    log(LOG_INFO, "Button press " + String(buttonPressCount) + 
-        " -> Channel " + String(tempMidiChannel));
+    logf(LOG_INFO, "Button press %d -> Channel %u", buttonPressCount, tempMidiChannel);
     
     // Immediate visual feedback - single flash to acknowledge button press
     setStatusLedPattern(LED_SINGLE_FLASH);
@@ -145,7 +144,7 @@ void handleChannelSelectAutoSave() {
         currentMidiChannel = tempMidiChannel;
         saveMidiChannelToNVS();
         channelSelectMode = false;
-        log(LOG_INFO, "Channel " + String(currentMidiChannel) + " selected and saved");
+        logf(LOG_INFO, "Channel %u selected and saved", currentMidiChannel);
         
         // Non-blocking LED feedback showing the selected channel number
         // This will be handled by a separate function to avoid blocking
@@ -213,7 +212,7 @@ void checkAmpChannelButtons() {
                     midiLearnChannel = i;
                     midiLearnArmed = false;
                     midiLearnStartTime = millis();
-                    log(LOG_INFO, String("MIDI Learn: Waiting for MIDI PC for channel ") + String(i+1));
+                    logf(LOG_INFO, "MIDI Learn: Waiting for MIDI PC for channel %d", i+1);
                     setStatusLedPattern(LED_TRIPLE_FLASH);
                 }
                 #endif
@@ -273,7 +272,7 @@ void checkAmpChannelButtons() {
                             }
                             #else
                             // Multi-button: switch to specific channel
-                            log(LOG_INFO, "Button " + String(i + 1) + " short press: switching to channel " + String(i + 1));
+                            logf(LOG_INFO, "Button %d short press: switching to channel %d", i + 1, i + 1);
                             setAmpChannel(i + 1);
                             #endif
                         }
@@ -299,15 +298,15 @@ void checkAmpChannelButtons() {
 }
 
 void handleCommand(uint8_t commandType, uint8_t value) {
-    log(LOG_DEBUG, "Received command - Type: " + String(commandType) + ", Value: " + String(value));
+    logf(LOG_DEBUG, "Received command - Type: %u, Value: %u", commandType, value);
     
     switch (commandType) {
         case PROGRAM_CHANGE:
-            log(LOG_INFO, "Program change command received: " + String(value));
+            logf(LOG_INFO, "Program change command received: %u", value);
             setAmpChannel(value);
             break;
         default:
-            log(LOG_WARN, "Unknown command received - Type: " + String(commandType) + ", Value: " + String(value));
+            logf(LOG_WARN, "Unknown command received - Type: %u, Value: %u", commandType, value);
             break;
     }
 }
@@ -330,7 +329,7 @@ void handleProgramChange(byte midiChannel, byte program) {
         // Learn the MIDI PC mapping
         midiChannelMap[0] = program;
         saveMidiMapToNVS();
-        log(LOG_INFO, String("MIDI PC#") + String(program) + " assigned to channel 1");
+        logf(LOG_INFO, "MIDI PC#%u assigned to channel 1", program);
         setStatusLedPattern(LED_SINGLE_FLASH);
         midiLearnChannel = -1;
         midiLearnArmed = false;
@@ -370,7 +369,7 @@ void handleProgramChange(byte midiChannel, byte program) {
         // Learn the MIDI PC mapping
         midiChannelMap[midiLearnChannel] = program;
         saveMidiMapToNVS();
-        log(LOG_INFO, String("MIDI PC#") + String(program) + " assigned to channel " + String(midiLearnChannel + 1));
+        logf(LOG_INFO, "MIDI PC#%u assigned to channel %d", program, midiLearnChannel + 1);
         setStatusLedPattern(LED_SINGLE_FLASH);
         midiLearnChannel = -1;
         midiLearnCompleteTime = millis(); // Set cooldown time
@@ -387,22 +386,22 @@ void handleProgramChange(byte midiChannel, byte program) {
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         if (midiChannelMap[i] == program) {
             setStatusLedPattern(LED_TRIPLE_FLASH);
-            log(LOG_INFO, "MIDI Program Change - Channel: " + String(midiChannel) + ", Program: " + String(program) + " mapped to channel " + String(i+1));
+            logf(LOG_INFO, "MIDI Program Change - Channel: %u, Program: %u mapped to channel %d", midiChannel, program, i+1);
             setAmpChannel(i + 1);
             return;
         }
     }
-    log(LOG_INFO, "MIDI Program Change - Channel: " + String(midiChannel) + ", Program: " + String(program) + " (no mapping)");
+    logf(LOG_INFO, "MIDI Program Change - Channel: %u, Program: %u (no mapping)", midiChannel, program);
 #endif
 }
 
 void setAmpChannel(uint8_t channel) {
     if (channel == currentAmpChannel) {
-        log(LOG_DEBUG, "Channel " + String(channel) + " already active, ignoring");
+        logf(LOG_DEBUG, "Channel %u already active, ignoring", channel);
         return; // Already selected
     }
 
-    log(LOG_INFO, "Switching amp channel from " + String(currentAmpChannel) + " to " + String(channel));
+    logf(LOG_INFO, "Switching amp channel from %u to %u", currentAmpChannel, channel);
 
     // Turn all channels OFF
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
@@ -413,15 +412,15 @@ void setAmpChannel(uint8_t channel) {
     if (channel >= 1 && channel <= MAX_AMPSWITCHS) {
         digitalWrite(ampSwitchPins[channel - 1], HIGH);
         currentAmpChannel = channel;
-        log(LOG_INFO, "Amp channel " + String(channel) + " activated (pin " + String(ampSwitchPins[channel - 1]) + ")");
+        logf(LOG_INFO, "Amp channel %u activated (pin %u)", channel, ampSwitchPins[channel - 1]);
     } else if (channel == 0) {
         currentAmpChannel = 0;
         log(LOG_INFO, "All amp channels turned off");
     } else {
         currentAmpChannel = 0; // None selected
-        log(LOG_WARN, "Invalid channel number: " + String(channel) + " (valid range: 0-" + String(MAX_AMPSWITCHS) + ")");
+        logf(LOG_WARN, "Invalid channel number: %u (valid range: 0-%d)", channel, MAX_AMPSWITCHS);
     }
     
     // Log current state
-    log(LOG_DEBUG, "Current amp channel: " + String(currentAmpChannel));
+    logf(LOG_DEBUG, "Current amp channel: %u", currentAmpChannel);
 }

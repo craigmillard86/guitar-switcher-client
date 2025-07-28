@@ -59,7 +59,7 @@ void saveMidiChannelToNVS() {
         nvs.putUChar("channel", currentMidiChannel);
         nvs.putInt("version", STORAGE_VERSION);
         nvs.end();
-        log(LOG_INFO, "MIDI channel " + String(currentMidiChannel) + " saved to NVS");
+        logf(LOG_INFO, "MIDI channel %u saved to NVS", currentMidiChannel);
     } else {
         log(LOG_ERROR, "Failed to save MIDI channel to NVS");
     }
@@ -80,7 +80,7 @@ void loadMidiChannelFromNVS() {
         } else if (nvs.isKey("channel")) {
             currentMidiChannel = nvs.getUChar("channel", 1);
             nvs.end();
-            log(LOG_INFO, "MIDI channel " + String(currentMidiChannel) + " loaded from NVS");
+            logf(LOG_INFO, "MIDI channel %u loaded from NVS", currentMidiChannel);
         } else {
             nvs.end();
         }
@@ -94,7 +94,7 @@ void saveLogLevelToNVS(LogLevel level) {
         nvs.putUChar("log_level", (uint8_t)level);
         nvs.putInt("version", STORAGE_VERSION);
         nvs.end();
-        log(LOG_DEBUG, "Log level saved to NVS: " + String((uint8_t)level) + " (version " + String(STORAGE_VERSION) + ")");
+        logf(LOG_DEBUG, "Log level saved to NVS: %u (version %d)", (uint8_t)level, STORAGE_VERSION);
     } else {
         log(LOG_ERROR, "Failed to save log level to NVS");
     }
@@ -114,7 +114,7 @@ LogLevel loadLogLevelFromNVS() {
         uint8_t savedLevel = nvs.getUChar("log_level", LOG_INFO);
         level = (LogLevel)savedLevel;
         nvs.end();
-        log(LOG_DEBUG, "Log level loaded from NVS: " + String((uint8_t)level) + " (version " + String(STORAGE_VERSION) + ")");
+        logf(LOG_DEBUG, "Log level loaded from NVS: %u (version %d)", (uint8_t)level, STORAGE_VERSION);
     } else {
         log(LOG_WARN, "Failed to load log level from NVS, using default");
     }
@@ -155,7 +155,7 @@ void saveServerToNVS(const uint8_t* mac, uint8_t channel) {
         nvs.putInt("version", STORAGE_VERSION);
         log(LOG_INFO, "Server info saved to NVS:");
         printMAC(mac, LOG_INFO);
-        log(LOG_INFO, "Channel: " + String(channel));
+        logf(LOG_INFO, "Channel: %u", channel);
         nvs.end();
     } else {
         log(LOG_ERROR, "Failed to open NVS for writing!");
@@ -178,7 +178,7 @@ bool loadServerFromNVS(uint8_t* mac, uint8_t* channel) {
             *channel = nvs.getUChar("channel", 1);
             log(LOG_INFO, "Server info loaded from NVS:");
             printMAC(mac, LOG_INFO);
-            log(LOG_INFO, "Channel: " + String(*channel));
+            logf(LOG_INFO, "Channel: %u", *channel);
             success = true;
         } else {
             log(LOG_DEBUG, "No server MAC found in NVS");

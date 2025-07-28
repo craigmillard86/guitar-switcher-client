@@ -52,15 +52,15 @@ void setup() {
     loadMidiChannelFromNVS();
     
     log(LOG_INFO, "=== ESP32 Client Starting ===");
-    log(LOG_INFO, "Firmware Version: " + String(FIRMWARE_VERSION));
-    log(LOG_INFO, "Board ID: " + String(BOARD_ID));
+    logf(LOG_INFO, "Firmware Version: %s", FIRMWARE_VERSION);
+    logf(LOG_INFO, "Board ID: %u", BOARD_ID);
     
      
     // Setup pairing LED
     pinMode(PAIRING_LED_PIN, OUTPUT);
     ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
     ledcAttachPin(PAIRING_LED_PIN, LEDC_CHANNEL_0);
-    log(LOG_DEBUG, "Pairing LED initialized on pin " + String(PAIRING_LED_PIN));
+    logf(LOG_DEBUG, "Pairing LED initialized on pin %d", PAIRING_LED_PIN);
     setStatusLedPattern(LED_OFF);
     
     log(LOG_INFO, "Hardware initialization complete");
@@ -127,11 +127,11 @@ void setup() {
         pairingStatus = PAIR_PAIRED;
         log(LOG_INFO, "Loaded paired server from NVS:");
         printMAC(serverAddress, LOG_INFO);
-        log(LOG_INFO, "Channel: " + String(currentChannel));
+        logf(LOG_INFO, "Channel: %u", currentChannel);
         
         // Set the WiFi channel
         ESP_ERROR_CHECK(esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE));
-        log(LOG_DEBUG, "WiFi channel set to " + String(currentChannel));
+        logf(LOG_DEBUG, "WiFi channel set to %u", currentChannel);
 
         // Initialize ESP-NOW
         log(LOG_DEBUG, "Initializing ESP-NOW...");
@@ -148,7 +148,7 @@ void setup() {
     MIDI.setHandleProgramChange(handleProgramChange);
     MIDI.begin(MIDI_CHANNEL_OMNI); // Listen to all channels
     MIDI.turnThruOn();             // Pass incoming MIDI to output (MIDI THRU)
-    log(LOG_INFO, "MIDI initialized on pins RX:" + String(MIDI_RX_PIN) + " TX:" + String(MIDI_TX_PIN));
+    logf(LOG_INFO, "MIDI initialized on pins RX:%u TX:%u", MIDI_RX_PIN, MIDI_TX_PIN);
 
     log(LOG_INFO, "=== Setup Complete ===");
     log(LOG_INFO, "Type 'help' for available commands");
@@ -193,7 +193,7 @@ void loop() {
         updateMemoryStats();
         uint32_t freeHeap = getFreeHeap();
         if (freeHeap < 10000) { // Warning if less than 10KB free
-            log(LOG_WARN, "Low memory warning: " + String(freeHeap) + "B free");
+            logf(LOG_WARN, "Low memory warning: %uB free", freeHeap);
         }
     }
 }

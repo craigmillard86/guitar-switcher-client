@@ -39,7 +39,7 @@ void addPeer(const uint8_t* mac_addr, uint8_t chan) {
     
     // Set the WiFi channel
     ESP_ERROR_CHECK(esp_wifi_set_channel(chan, WIFI_SECOND_CHAN_NONE));
-    log(LOG_DEBUG, "WiFi channel set to " + String(chan));
+    logf(LOG_DEBUG, "WiFi channel set to %u", chan);
 
     // Remove the peer first to avoid duplicates
     esp_now_del_peer(mac_addr);
@@ -86,7 +86,7 @@ void addPeer(const uint8_t* mac_addr, uint8_t chan) {
 PairingStatus autoPairing(){
   switch(pairingStatus) {
     case PAIR_REQUEST:
-      log(LOG_INFO, "Starting pairing on channel " + String(currentChannel));
+      logf(LOG_INFO, "Starting pairing on channel %u", currentChannel);
 
       // set WiFi channel   
       ESP_ERROR_CHECK(esp_wifi_set_channel(currentChannel,  WIFI_SECOND_CHAN_NONE));
@@ -122,7 +122,7 @@ PairingStatus autoPairing(){
         if (currentChannel > MAX_CHANNEL){
           currentChannel = 1;
         }   
-        log(LOG_DEBUG, "Pairing timeout, trying channel " + String(currentChannel));
+        logf(LOG_DEBUG, "Pairing timeout, trying channel %u", currentChannel);
         pairingStatus = PAIR_REQUEST;
       }
     break;
