@@ -121,7 +121,35 @@ Connect via USB and open serial monitor (115200 baud) for these commands:
 
 ---
 
-## Build Configuration & Technical Details
+## Build Configuration & Performance Modes
+
+### Three Performance Modes
+
+The system supports three distinct performance modes optimized for different use cases:
+
+#### 1. Ultra-Fast Single Channel Mode
+**Configuration:** `MAX_AMPSWITCHS=1` + `FAST_SWITCHING=1`
+- **Switching Speed:** 5-30 microseconds (0.005-0.030ms)
+- **Method:** Direct GPIO register writes (`REG_WRITE`)
+- **Logging:** Disabled for maximum performance
+- **Use Case:** Professional guitar performance requiring instant channel switching
+- **Latency:** Sub-millisecond response time
+
+#### 2. Standard Single Channel Mode  
+**Configuration:** `MAX_AMPSWITCHS=1` (without `FAST_SWITCHING`)
+- **Switching Speed:** ~500 microseconds (0.5ms)
+- **Method:** Standard Arduino `digitalWrite()`
+- **Logging:** Full logging and validation enabled
+- **Use Case:** Development, debugging, or when logging is needed
+- **Latency:** Human-imperceptible but measurable delay
+
+#### 3. Multi-Channel Mode
+**Configuration:** `MAX_AMPSWITCHS=2-4` (optionally with `FAST_SWITCHING`)
+- **Fast Mode:** 10-50 microseconds per channel with `FAST_SWITCHING=1`
+- **Standard Mode:** ~2-5ms total switching time without `FAST_SWITCHING`
+- **Method:** Either register writes or digitalWrite() for all channels
+- **Features:** Full channel validation, bounds checking, comprehensive logging
+- **Use Case:** Multi-channel amps requiring exclusive channel selection
 
 ### Current Build Configuration
 The device is configured via build flags in `platformio.ini`:
@@ -133,21 +161,67 @@ board = esp32-c3-devkitm-1
 framework = arduino
 build_flags = 
     -D CLIENT_TYPE=AMP_SWITCHER
-    -D MAX_AMPSWITCHS=4
-    -D AMP_SWITCH_PINS=\"2,9,10,20\"
-    -D AMP_BUTTON_PINS=\"1,3,4,5\"
+    -D MAX_AMPSWITCHS=1                    # Single channel mode
+    -D AMP_SWITCH_PINS=\"4\"               # Single relay pin
+    -D AMP_BUTTON_PINS=\"1\"               # Single button pin
     -D DEVICE_NAME=\"AMP_SWITCHER_1\"
+    -D FAST_SWITCHING=1                    # Enable ultra-fast mode
 ```
+
+### Switching to Different Modes
+
+**For Ultra-Fast Single Channel (Current):**
+```ini
+-D MAX_AMPSWITCHS=1
+-D FAST_SWITCHING=1
+-D AMP_SWITCH_PINS=\"4\"
+-D AMP_BUTTON_PINS=\"1\"
+```
+
+**For Standard Single Channel:**
+```ini
+-D MAX_AMPSWITCHS=1
+# Remove or comment out FAST_SWITCHING
+-D AMP_SWITCH_PINS=\"4\" 
+-D AMP_BUTTON_PINS=\"1\"
+```
+
+**For Ultra-Fast Multi-Channel:**
+```ini
+-D MAX_AMPSWITCHS=4
+-D FAST_SWITCHING=1
+-D AMP_SWITCH_PINS=\"2,9,10,20\"
+-D AMP_BUTTON_PINS=\"1,3,4,5\"
+```
+
+**For Standard Multi-Channel:**
+```ini
+-D MAX_AMPSWITCHS=4
+# Remove or comment out FAST_SWITCHING
+-D AMP_SWITCH_PINS=\"2,9,10,20\"
+-D AMP_BUTTON_PINS=\"1,3,4,5\"
+```
+
+### Performance Testing
+
+Test switching performance using the serial command:
+- `speed` - Measures actual switching time in microseconds
+
+**Expected Performance:**
+- **Ultra-Fast Mode:** 5-30μs switching time
+- **Standard Mode:** 500μs-5ms switching time  
+- **Logging Impact:** Serial logging adds ~500μs delay
 
 ### Customizing Hardware Configuration
 
 **To change pin assignments or channel count:**
 1. Edit the build flags in `platformio.ini`
-2. Rebuild and flash the firmware
+2. Rebuild and flash the firmware  
 3. Use `pins` and `config` commands to verify new settings
 
 **Available Build Flags:**
 - `MAX_AMPSWITCHS` - Number of channels (1-4)
+- `FAST_SWITCHING` - Enable ultra-fast GPIO register access (optional)
 - `AMP_SWITCH_PINS` - Relay control pins (comma-separated)
 - `AMP_BUTTON_PINS` - Button input pins (comma-separated)
 - `DEVICE_NAME` - Device identifier

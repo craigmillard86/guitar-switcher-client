@@ -327,6 +327,49 @@ bool handleAmpChannelCommands(const String& cmd) {
         setAmpChannel(0);
         log(LOG_INFO, "All amp channels turned off");
         return true;
+    } else if (cmd.equalsIgnoreCase("speed")) {
+        // Speed test for relay switching
+        log(LOG_INFO, "=== RELAY SPEED TEST ===");
+        
+        unsigned long startTime = micros();
+        setAmpChannel(1);
+        unsigned long time1 = micros();
+        setAmpChannel(0);
+        unsigned long time2 = micros();
+        setAmpChannel(1);
+        unsigned long endTime = micros();
+        
+        logf(LOG_INFO, "Switch ON time: %lu us", time1 - startTime);
+        logf(LOG_INFO, "Switch OFF time: %lu us", time2 - time1);
+        logf(LOG_INFO, "Total cycle time: %lu us", endTime - startTime);
+        logf(LOG_INFO, "Average per switch: %lu us", (endTime - startTime) / 3);
+        
+        #ifdef FAST_SWITCHING
+        log(LOG_INFO, "Mode: Ultra-Fast (Direct register access)");
+        #else
+        log(LOG_INFO, "Mode: Standard (digitalWrite)");
+        #endif
+        
+        return true;
+    } else if (cmd.equalsIgnoreCase("test")) {
+        // Test command to manually toggle the relay
+        log(LOG_INFO, "Testing relay - toggling pin state...");
+        int currentState = digitalRead(ampSwitchPins[0]);
+        logf(LOG_INFO, "Current pin %u state: %s", ampSwitchPins[0], currentState ? "HIGH" : "LOW");
+        
+        digitalWrite(ampSwitchPins[0], !currentState);
+        delay(100); // Small delay to ensure write completes
+        
+        int newState = digitalRead(ampSwitchPins[0]);
+        logf(LOG_INFO, "New pin %u state: %s", ampSwitchPins[0], newState ? "HIGH" : "LOW");
+        
+        if (newState != !currentState) {
+            logf(LOG_ERROR, "Pin state didn't change! Expected %s, got %s", 
+                 !currentState ? "HIGH" : "LOW", newState ? "HIGH" : "LOW");
+        } else {
+            log(LOG_INFO, "Pin toggle successful!");
+        }
+        return true;
     } else if (cmd.toInt() > 0 && cmd.toInt() <= MAX_AMPSWITCHS) {
         uint8_t ch = cmd.toInt();
         setAmpChannel(ch);
@@ -465,6 +508,8 @@ void printAmpChannelCommandsHelp() {
     Serial.println(F("  1-4         : Switch to amp channel 1-4"));
     Serial.println(F("  b1-b4       : Simulate button press 1-4"));
     Serial.println(F("  off         : Turn all channels off"));
+    Serial.println(F("  test        : Test relay pin toggle"));
+    Serial.println(F("  speed       : Measure switching speed"));
     Serial.println(F(""));
 }
 

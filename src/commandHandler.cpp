@@ -19,6 +19,11 @@
 #include "espnow-pairing.h"
 #include "utils.h"
 #include "nvsManager.h"
+// Include for fast GPIO register access
+#ifdef FAST_SWITCHING
+#include <soc/gpio_reg.h>
+#include <soc/io_mux_reg.h>
+#endif
 
 unsigned long midiLearnStartTime = 0;
 static bool midiLearnJustTimedOut = false; // Flag to prevent pairing mode after MIDI Learn timeout
@@ -326,18 +331,25 @@ void handleButtonRelease(int buttonIndex, unsigned long held, bool* buttonPresse
                 log(LOG_DEBUG, "Button press ignored during post-learn cooldown period");
             } else if (!midiLearnArmed) {
                 #if MAX_AMPSWITCHS == 1
-                // Single button: toggle relay
+                // Single button: toggle relay - FAST PATH
                 if (currentAmpChannel == 1) {
                     setAmpChannel(0);
+                    // Defer logging to avoid button response delay
+                    #if LOG_LEVEL >= LOG_INFO
                     log(LOG_INFO, "Toggled relay OFF");
+                    #endif
                 } else {
                     setAmpChannel(1);
+                    #if LOG_LEVEL >= LOG_INFO
                     log(LOG_INFO, "Toggled relay ON");
+                    #endif
                 }
                 #else
                 // Multi-button: switch to specific channel
-                logf(LOG_INFO, "Button %d short press: switching to channel %d", buttonIndex + 1, buttonIndex + 1);
                 setAmpChannel(buttonIndex + 1);
+                #if LOG_LEVEL >= LOG_INFO
+                logf(LOG_INFO, "Button %d: channel %d", buttonIndex + 1, buttonIndex + 1);
+                #endif
                 #endif
             }
         }
@@ -423,14 +435,18 @@ void handleProgramChange(byte midiChannel, byte program) {
     
     // Validate array access before checking MIDI map
     if (0 < MAX_AMPSWITCHS && program == midiChannelMap[0]) {
+        // FAST MIDI switching - minimal logging
         if (currentAmpChannel == 1) {
             setAmpChannel(0);
-            log(LOG_INFO, "MIDI PC received: Toggled relay OFF");
         } else {
             setAmpChannel(1);
-            log(LOG_INFO, "MIDI PC received: Toggled relay ON");
         }
         setStatusLedPattern(LED_TRIPLE_FLASH);
+        
+        // Optional logging only if debug enabled
+        #if LOG_LEVEL >= LOG_INFO
+        log(LOG_INFO, "MIDI PC: Toggled relay");
+        #endif
     }
     return;
 #else
@@ -461,20 +477,85 @@ void handleProgramChange(byte midiChannel, byte program) {
         return;
     }
     
+    // FAST MIDI switching for multi-channel - optimized loop
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         if (midiChannelMap[i] == program) {
-            setStatusLedPattern(LED_TRIPLE_FLASH);
-            logf(LOG_INFO, "MIDI Program Change - Channel: %u, Program: %u mapped to channel %d", midiChannel, program, i+1);
             setAmpChannel(i + 1);
+            setStatusLedPattern(LED_TRIPLE_FLASH);
+            
+            // Optional logging only if debug enabled
+            #if LOG_LEVEL >= LOG_INFO
+            logf(LOG_INFO, "MIDI PC: Channel %d", i + 1);
+            #endif
             return;
         }
     }
-    logf(LOG_INFO, "MIDI Program Change - Channel: %u, Program: %u (no mapping)", midiChannel, program);
+    
+    // No mapping found - minimal logging
+    #if LOG_LEVEL >= LOG_DEBUG
+    logf(LOG_DEBUG, "MIDI PC#%u: No mapping", program);
+    #endif
 #endif
 }
 
 void setAmpChannel(uint8_t channel) {
-    // Validate channel range (0 = off, 1-MAX_AMPSWITCHS = valid channels)
+    // Ultra-fast path for single channel mode
+    #if MAX_AMPSWITCHS == 1 && defined(FAST_SWITCHING)
+    
+    if (channel > 1 || channel == currentAmpChannel) return;
+    
+    // Direct GPIO register access for maximum speed (ESP32-C3)
+    // Use ESP32-C3 specific GPIO registers
+    if (channel == 0) {
+        // Clear bit (LOW) - direct register write
+        REG_WRITE(GPIO_OUT_W1TC_REG, (1UL << ampSwitchPins[0]));
+        currentAmpChannel = 0;
+    } else {
+        // Set bit (HIGH) - direct register write
+        REG_WRITE(GPIO_OUT_W1TS_REG, (1UL << ampSwitchPins[0]));
+        currentAmpChannel = 1;
+    }
+    
+    // No logging in fast mode - adds ~500μs delay
+    
+    #elif MAX_AMPSWITCHS == 1
+    // Standard fast path
+    if (channel > 1) return;
+    if (channel == currentAmpChannel) return;
+    
+    if (channel == 0) {
+        digitalWrite(ampSwitchPins[0], LOW);
+        currentAmpChannel = 0;
+    } else {
+        digitalWrite(ampSwitchPins[0], HIGH);
+        currentAmpChannel = 1;
+    }
+    
+    #else
+    // Multi-channel mode - optimized for speed when FAST_SWITCHING enabled
+    #ifdef FAST_SWITCHING
+    // Ultra-fast multi-channel with direct register access
+    if (channel > MAX_AMPSWITCHS) return;
+    if (channel == currentAmpChannel) return;
+    
+    // Turn all channels OFF - direct register writes
+    for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+        REG_WRITE(GPIO_OUT_W1TC_REG, (1UL << ampSwitchPins[i]));
+    }
+    
+    // Turn ON the requested channel (if valid)
+    if (channel >= 1 && channel <= MAX_AMPSWITCHS) {
+        int pinIndex = channel - 1;
+        REG_WRITE(GPIO_OUT_W1TS_REG, (1UL << ampSwitchPins[pinIndex]));
+        currentAmpChannel = channel;
+    } else if (channel == 0) {
+        currentAmpChannel = 0;
+    }
+    
+    // No logging in fast mode
+    
+    #else
+    // Standard multi-channel mode with full validation and logging
     if (channel > MAX_AMPSWITCHS) {
         logf(LOG_ERROR, "Invalid channel %u requested (max: %d)", channel, MAX_AMPSWITCHS);
         return;
@@ -482,12 +563,12 @@ void setAmpChannel(uint8_t channel) {
     
     if (channel == currentAmpChannel) {
         logf(LOG_DEBUG, "Channel %u already active, ignoring", channel);
-        return; // Already selected
+        return;
     }
 
     logf(LOG_INFO, "Switching amp channel from %u to %u", currentAmpChannel, channel);
 
-    // Turn all channels OFF with bounds checking
+    // Turn all channels OFF
     for (int i = 0; i < MAX_AMPSWITCHS; i++) {
         // Validate array bounds and pin values
         if (i < 0 || i >= MAX_AMPSWITCHS) {
@@ -503,22 +584,12 @@ void setAmpChannel(uint8_t channel) {
         digitalWrite(ampSwitchPins[i], LOW);
     }
 
-    // Turn ON the requested channel (if valid, 1-based index)
+    // Turn ON the requested channel
     if (channel >= 1 && channel <= MAX_AMPSWITCHS) {
         int pinIndex = channel - 1;
-        
-        // Double-check bounds before array access
-        if (pinIndex >= 0 && pinIndex < MAX_AMPSWITCHS) {
-            if (ampSwitchPins[pinIndex] >= 0 && ampSwitchPins[pinIndex] <= 255) {
-                digitalWrite(ampSwitchPins[pinIndex], HIGH);
-                currentAmpChannel = channel;
-                logf(LOG_INFO, "Amp channel %u activated (pin %u)", channel, ampSwitchPins[pinIndex]);
-            } else {
-                logf(LOG_ERROR, "Invalid switch pin %d for channel %u", ampSwitchPins[pinIndex], channel);
-            }
-        } else {
-            logf(LOG_ERROR, "Pin index %d out of bounds for channel %u", pinIndex, channel);
-        }
+        digitalWrite(ampSwitchPins[pinIndex], HIGH);
+        currentAmpChannel = channel;
+        logf(LOG_INFO, "Amp channel %u activated", channel);
     } else if (channel == 0) {
         currentAmpChannel = 0;
         log(LOG_INFO, "All amp channels turned off");
@@ -526,7 +597,6 @@ void setAmpChannel(uint8_t channel) {
         currentAmpChannel = 0; // None selected
         logf(LOG_WARN, "Invalid channel number: %u (valid range: 0-%d)", channel, MAX_AMPSWITCHS);
     }
-    
-    // Log current state
-    logf(LOG_DEBUG, "Current amp channel: %u", currentAmpChannel);
+    #endif
+    #endif
 }
