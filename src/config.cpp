@@ -62,7 +62,8 @@ void printClientConfiguration() {
     // Print ampSwitchPins as comma-separated string with bounds checking
     char switchPinsStr[64] = "";
     size_t switchStrLen = 0;
-    for (int i = 0; i < MAX_AMPSWITCHS && i < 8; i++) {  // Extra bounds check
+    const size_t maxPins = min(MAX_AMPSWITCHS, 8);  // Use min for safety
+    for (int i = 0; i < maxPins; i++) {
         char pinStr[8];
         int written = snprintf(pinStr, sizeof(pinStr), "%d", ampSwitchPins[i]);
         if (written < 0 || written >= (int)sizeof(pinStr)) {

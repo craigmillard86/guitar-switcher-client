@@ -106,21 +106,54 @@ Connect via USB serial monitor (115200 baud) and try these essential commands:
 |---------|-------------|
 | `testled` | Test status LED patterns |
 | `testpairing` | Test pairing LED |
+| `speed` | Test channel switching speed (microsecond measurement) |
+
+---
+
+## Performance Modes
+
+The system operates in three distinct performance modes based on build configuration:
+
+### 1. Ultra-Fast Single Channel Mode
+**Configuration:** `MAX_AMPSWITCHS=1` + `FAST_SWITCHING=1` (Current)
+- **Switching Speed:** 5-30 microseconds
+- **Method:** Direct GPIO register writes
+- **Features:** Maximum performance, no logging during switching
+- **Command:** `speed` - Test actual switching performance
+
+### 2. Standard Single Channel Mode  
+**Configuration:** `MAX_AMPSWITCHS=1` (without `FAST_SWITCHING`)
+- **Switching Speed:** ~500 microseconds
+- **Method:** Standard digitalWrite()
+- **Features:** Full logging and validation
+
+### 3. Multi-Channel Mode
+**Configuration:** `MAX_AMPSWITCHS=2-4` (optionally with `FAST_SWITCHING`)
+- **Fast Mode:** 10-50μs with `FAST_SWITCHING=1`
+- **Standard Mode:** 2-5ms without `FAST_SWITCHING`
+- **Features:** Multi-channel validation, exclusive switching
+
+> **Performance Test:** Use `speed` command to measure actual switching times
 
 ---
 
 ## Current Hardware Configuration
 
-Based on current `platformio.ini` build settings:
+Based on current `platformio.ini` build settings (Ultra-Fast Single Channel Mode):
 
 ### Pin Assignments
-- **Relay Control**: GPIO 2 (amp channel switching)
+- **Relay Control**: GPIO 4 (amp channel switching)
 - **Button Input**: GPIO 1 (manual channel control)
 - **Status LED**: GPIO 8 (visual feedback)
 - **MIDI Input**: GPIO 6 (from MIDI controller)
 - **MIDI Output**: GPIO 7 (MIDI thru)
 
-> **Note:** Current configuration is single-channel mode (MAX_AMPSWITCHS=1)
+### Performance Configuration
+- **Mode**: Ultra-Fast Single Channel (`MAX_AMPSWITCHS=1`, `FAST_SWITCHING=1`)
+- **Expected Switching Speed**: 5-30 microseconds
+- **GPIO Method**: Direct register writes (`REG_WRITE`)
+
+> **Note:** Use `config` command to see complete build configuration
 
 ### Example Command Outputs
 
@@ -152,9 +185,20 @@ Based on current `platformio.ini` build settings:
 [INFO] Device Name: AMP_SWITCHER_1
 [INFO] Amp Switching: Enabled
 [INFO] Max Amp Switches: 1
-[INFO] Amp Switch Pins: 2
+[INFO] Fast Switching: Enabled
+[INFO] Amp Switch Pins: 4
 [INFO] Amp Button Pins: 1
 [INFO] ===========================
+```
+
+**`speed` Command:**
+```
+[INFO] Testing channel switching speed...
+[INFO] Switch 0->1: 15μs
+[INFO] Switch 1->0: 12μs
+[INFO] Switch 0->1: 18μs
+[INFO] Average switching time: 15μs
+[INFO] Mode: Ultra-Fast (Direct register access)
 ```
 
 ---

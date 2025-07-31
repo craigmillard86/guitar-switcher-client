@@ -194,6 +194,31 @@ void handleOTAMode();
 void performPeriodicTasks();
 
 void loop() {
+    #ifdef FAST_SWITCHING
+    // Ultra-fast loop for minimum latency
+    checkAmpChannelButtons();    // Highest priority - button response
+    MIDI.read();                 // Second priority - MIDI response
+    updateStatusLED();           // Visual feedback
+    
+    // Reduce frequency of non-critical tasks
+    static uint8_t slowCounter = 0;
+    if (++slowCounter >= 100) {  // Every ~100 loops
+        slowCounter = 0;
+        checkSerialCommands();
+        if (pairingStatus != PAIR_PAIRED) {
+            autoPairing();
+        }
+        performPeriodicTasks();
+    }
+    
+    // Handle OTA mode if triggered
+    if (serialOtaTrigger) {
+        handleOTAMode();
+        return;
+    }
+    
+    #else
+    // Standard loop with performance monitoring
     unsigned long loopStart = millis();
     
     processMainTasks();
@@ -209,6 +234,7 @@ void loop() {
     updatePerformanceMetrics(loopTime);
     
     performPeriodicTasks();
+    #endif
 }
 
 void processMainTasks() {
