@@ -69,5 +69,8 @@ uint32_t getMinFreeHeap();
 // Client configuration functions
 void printClientConfiguration();
 
+// Pairing helper functions
+void resetPairingToDefaults();
+
 void setStatusLedPattern(StatusLedPattern pattern);
 void updateStatusLED();

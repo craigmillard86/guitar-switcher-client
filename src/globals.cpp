@@ -43,6 +43,9 @@ volatile StatusLedPattern currentLedPattern = LED_OFF;
 volatile unsigned long ledPatternStart = 0;
 volatile int ledPatternStep = 0;
 
+// LED test mode - when active, prevents data reception from overriding LED patterns
+unsigned long ledTestModeEnd = 0;
+
 bool midiLearnArmed = false;
 int midiLearnChannel = -1;
 #if MAX_AMPSWITCHS == 2

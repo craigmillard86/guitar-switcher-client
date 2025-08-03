@@ -161,7 +161,7 @@ void showUnknownCommand(const String& cmd);
 void handleSerialCommand(const String& cmd) {
     if (cmd.isEmpty()) return;
 
-    setStatusLedPattern(LED_DOUBLE_FLASH);
+    // Removed automatic LED flash to prevent interference with test patterns
     
     // Try each command category
     if (handleSystemCommands(cmd)) return;
@@ -261,8 +261,9 @@ bool handleControlCommands(const String& cmd) {
         return true;
     } else if (cmd.equalsIgnoreCase("pair")) {
         clearPairingNVS();
+        resetPairingToDefaults();
         pairingStatus = PAIR_REQUEST;
-        log(LOG_INFO, "Re-pairing requested!");
+        log(LOG_INFO, "Re-pairing requested! Starting discovery from channel 1...");
         return true;
     } else if (cmd.startsWith("setlog")) {
         int level = cmd.substring(6).toInt();
@@ -284,7 +285,7 @@ bool handleControlCommands(const String& cmd) {
         clearPairingNVS();
         clearLogLevelNVS();
         currentLogLevel = LOG_INFO;
-        pairingStatus = NOT_PAIRED;
+        resetPairingToDefaults();
         log(LOG_INFO, "All NVS data cleared - pairing and log level reset to defaults");
         return true;
     }
@@ -304,6 +305,24 @@ bool handleTestCommands(const String& cmd) {
             ledcWrite(LEDC_CHANNEL_0, 0);
             delay(100);
         }
+        return true;
+    } else if (cmd.equalsIgnoreCase("testbuttons")) {
+        log(LOG_INFO, "=== BUTTON TEST ===");
+        logf(LOG_INFO, "Button checking enabled: %s", enableButtonChecking ? "YES" : "NO");
+        log(LOG_INFO, "Current button states:");
+        for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+            uint8_t state = digitalRead(ampButtonPins[i]);
+            logf(LOG_INFO, "  Button %d (pin %u): %s", i+1, ampButtonPins[i], state ? "HIGH" : "LOW");
+        }
+        log(LOG_INFO, "==================");
+        return true;
+    } else if (cmd.equalsIgnoreCase("forcepair")) {
+        log(LOG_INFO, "=== FORCING PAIRING MODE ===");
+        clearPairingNVS();
+        resetPairingToDefaults();
+        pairingStatus = PAIR_REQUEST;
+        setStatusLedPattern(LED_FADE);
+        log(LOG_INFO, "Pairing mode forced - LED should fade");
         return true;
     }
     return false;
@@ -488,6 +507,8 @@ void printTestCommandsHelp() {
     Serial.println(F("TEST COMMANDS:"));
     Serial.println(F("  testled     : Test status LED"));
     Serial.println(F("  testpairing : Test pairing LED"));
+    Serial.println(F("  testbuttons : Show current button states"));
+    Serial.println(F("  forcepair   : Force pairing mode (for testing LED fade)"));
     Serial.println(F(""));
 }
 
@@ -554,6 +575,20 @@ const char* getPairingStatusString(PairingStatus status) {
     }
 }
 
+// Helper function to reset pairing to default state
+void resetPairingToDefaults() {
+    // Reset server address to broadcast for pairing discovery
+    serverAddress[0] = 0xFF;
+    serverAddress[1] = 0xFF;
+    serverAddress[2] = 0xFF;
+    serverAddress[3] = 0xFF;
+    serverAddress[4] = 0xFF;
+    serverAddress[5] = 0xFF;
+    // Reset channel to 1 to start discovery from the beginning
+    currentChannel = 1;
+    pairingStatus = NOT_PAIRED;
+}
+
 void getUptimeString(char* buffer, size_t bufferSize) {
     // Input validation
     if (buffer == nullptr || bufferSize == 0) {
@@ -608,6 +643,8 @@ void setStatusLedPattern(StatusLedPattern pattern) {
     // If pairing or OTA mode is active, ignore other patterns
     if (pairingStatus == PAIR_REQUEST || pairingStatus == PAIR_REQUESTED) {
         currentLedPattern = LED_FADE;
+        ledPatternStart = millis();
+        ledPatternStep = 0;
         return;
     }
     if (serialOtaTrigger) {
@@ -625,7 +662,22 @@ void updateStatusLED() {
     static unsigned long lastUpdate = 0;
     static bool ledState = LOW;
     static unsigned long lastFadeUpdate = 0;
+    static StatusLedPattern lastPattern = LED_OFF;
+    static PairingStatus lastPairingStatus = NOT_PAIRED;
     unsigned long now = millis();
+
+    // Detect pairing status changes
+    if (lastPairingStatus != pairingStatus) {
+        // Reset LED to OFF when pairing completes successfully
+        if (pairingStatus == PAIR_PAIRED && lastPairingStatus != PAIR_PAIRED) {
+            currentLedPattern = LED_OFF;
+            ledPatternStart = now;
+            ledPatternStep = 0;
+            ledcWrite(LEDC_CHANNEL_0, 0);
+        }
+        
+        lastPairingStatus = pairingStatus;
+    }
 
     // Only override patterns during active pairing phases, not when paired
     if (pairingStatus == PAIR_REQUEST || pairingStatus == PAIR_REQUESTED) {
@@ -641,6 +693,14 @@ void updateStatusLED() {
             ledPatternStep = 0;
         }
     }
+
+    // Reset fade variables when pattern changes to fade
+    if (currentLedPattern == LED_FADE && lastPattern != LED_FADE) {
+        fadeValue = 0;
+        fadeDirection = 1;
+        lastFadeUpdate = now;
+    }
+    lastPattern = currentLedPattern;
 
     switch (currentLedPattern) {
         case LED_SINGLE_FLASH:
@@ -677,6 +737,48 @@ void updateStatusLED() {
                 currentLedPattern = LED_OFF;
             }
             break;
+        case LED_QUAD_FLASH:
+            if (ledPatternStep % 2 == 0) {
+                ledcWrite(LEDC_CHANNEL_0, 8191);
+            } else {
+                ledcWrite(LEDC_CHANNEL_0, 0);
+            }
+            if (now - ledPatternStart > 50) {
+                ledPatternStep++;
+                ledPatternStart = now;
+            }
+            if (ledPatternStep > 7) {
+                currentLedPattern = LED_OFF;
+            }
+            break;
+        case LED_PENTA_FLASH:
+            if (ledPatternStep % 2 == 0) {
+                ledcWrite(LEDC_CHANNEL_0, 8191);
+            } else {
+                ledcWrite(LEDC_CHANNEL_0, 0);
+            }
+            if (now - ledPatternStart > 50) {
+                ledPatternStep++;
+                ledPatternStart = now;
+            }
+            if (ledPatternStep > 9) {
+                currentLedPattern = LED_OFF;
+            }
+            break;
+        case LED_HEXA_FLASH:
+            if (ledPatternStep % 2 == 0) {
+                ledcWrite(LEDC_CHANNEL_0, 8191);
+            } else {
+                ledcWrite(LEDC_CHANNEL_0, 0);
+            }
+            if (now - ledPatternStart > 50) {
+                ledPatternStep++;
+                ledPatternStart = now;
+            }
+            if (ledPatternStep > 11) {
+                currentLedPattern = LED_OFF;
+            }
+            break;
         case LED_FAST_BLINK:
             ledcWrite(LEDC_CHANNEL_0, (now / 100) % 2 ? 8191 : 0);
             break;
@@ -686,14 +788,6 @@ void updateStatusLED() {
         case LED_FADE:
             // Smooth 2-second fade cycle - continuous fade from bottom to top and back
             if (now - lastFadeUpdate > 20) { // Update every 20ms for smooth fade
-                static bool started = false;
-                
-                if (!started) {
-                    fadeValue = 0; // Start from bottom (off)
-                    fadeDirection = 1; // Start fading up
-                    started = true;
-                }
-                
                 fadeValue += fadeDirection * 20; // Smaller increment for smooth fade
                 
                 if (fadeValue >= 8191) {

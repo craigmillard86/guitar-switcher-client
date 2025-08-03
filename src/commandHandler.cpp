@@ -38,6 +38,7 @@ static bool milestone10s = false;
 static bool milestone15s = false;
 static bool milestone20s = false;
 static bool milestone25s = false;
+static bool milestone30s = false;
 
 // Channel select variables for both modes
 static bool channelSelectMode = false;
@@ -94,6 +95,7 @@ void resetMilestoneFlags() {
     milestone15s = false;
     milestone20s = false;
     milestone25s = false;
+    milestone30s = false;
 }
 
 // Shared function to handle LED feedback
@@ -101,23 +103,27 @@ void handleLedFeedback(unsigned long held, const char* buttonName) {
     if (held >= 5000 && !milestone5s) {
         setStatusLedPattern(LED_SINGLE_FLASH);
         milestone5s = true;
-        logf(LOG_INFO, "%s - 5s held - LED feedback", buttonName);
+        logf(LOG_INFO, "%s - 5s held - LED feedback (1 flash)", buttonName);
     } else if (held >= 10000 && !milestone10s) {
-        setStatusLedPattern(LED_SINGLE_FLASH);
+        setStatusLedPattern(LED_DOUBLE_FLASH);
         milestone10s = true;
-        logf(LOG_INFO, "%s - 10s held - MIDI Learn ready", buttonName);
+        logf(LOG_INFO, "%s - 10s held - MIDI Learn ready (2 flashes)", buttonName);
     } else if (held >= 15000 && !milestone15s) {
-        setStatusLedPattern(LED_SINGLE_FLASH);
+        setStatusLedPattern(LED_TRIPLE_FLASH);
         milestone15s = true;
-        logf(LOG_INFO, "%s - 15s held - Channel Select ready", buttonName);
+        logf(LOG_INFO, "%s - 15s held - Channel Select ready (3 flashes)", buttonName);
     } else if (held >= 20000 && !milestone20s) {
-        setStatusLedPattern(LED_SINGLE_FLASH);
+        setStatusLedPattern(LED_QUAD_FLASH);
         milestone20s = true;
-        logf(LOG_INFO, "%s - 20s held - LED feedback", buttonName);
+        logf(LOG_INFO, "%s - 20s held - LED feedback (4 flashes)", buttonName);
     } else if (held >= 25000 && !milestone25s) {
-        setStatusLedPattern(LED_SINGLE_FLASH);
+        setStatusLedPattern(LED_PENTA_FLASH);
         milestone25s = true;
-        logf(LOG_INFO, "%s - 25s held - LED feedback", buttonName);
+        logf(LOG_INFO, "%s - 25s held - LED feedback (5 flashes)", buttonName);
+    } else if (held >= 30000 && !milestone30s) {
+        setStatusLedPattern(LED_HEXA_FLASH);
+        milestone30s = true;
+        logf(LOG_INFO, "%s - 30s held - Pairing ready (6 flashes)", buttonName);
     }
 }
 
@@ -301,13 +307,17 @@ void handleButtonRelease(int buttonIndex, unsigned long held, bool* buttonPresse
     const unsigned long midiLearnActivationTime = 10000; // 10 seconds for MIDI Learn
     
     if (!buttonLongPressHandled[buttonIndex]) {
+        logf(LOG_DEBUG, "Button %d released after %lu ms, channelSelectMode=%d, midiLearnJustTimedOut=%d", 
+             buttonIndex, held, channelSelectMode ? 1 : 0, midiLearnJustTimedOut ? 1 : 0);
+        
         if (channelSelectMode) {
             // In channel select mode, any button can be used for selection
             handleChannelSelection();
         } else if (held >= 30000 && !midiLearnJustTimedOut && buttonIndex == 0) {
             // Pairing mode (30s+ hold released) - only button 1, not if MIDI Learn just timed out
             clearPairingNVS();
-            pairingStatus = NOT_PAIRED;
+            resetPairingToDefaults();
+            pairingStatus = PAIR_REQUEST; // Override to start pairing process
             log(LOG_INFO, "30s+ hold released: Pairing mode triggered!");
             channelSelectMode = false;
         } else if (held >= 15000 && buttonIndex == 0) {
