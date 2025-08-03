@@ -50,10 +50,22 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
         case DATA:      // we received data from server
             memcpy(&inData, incomingData, sizeof(inData));
             log(LOG_DEBUG, "Data packet received:");
-            logf(LOG_DEBUG, "  ID: %lu", inData.id);
-            logf(LOG_DEBUG, "  Temperature: %.1f", inData.temp);
-            logf(LOG_DEBUG, "  Humidity: %.1f", inData.hum);
-            logf(LOG_DEBUG, "  Reading ID: %lu", inData.readingId);
+            logf(LOG_DEBUG, "  ID: %u", inData.id);
+            logf(LOG_DEBUG, "  Command Type: %u", inData.commandType);
+            logf(LOG_DEBUG, "  Command Value: %u", inData.commandValue);
+            logf(LOG_DEBUG, "  Target Channel: %u", inData.targetChannel);
+            logf(LOG_DEBUG, "  Reading ID: %u", inData.readingId);
+            
+            // Process the received command
+            if (inData.commandType == CHANNEL_CHANGE) {
+                logf(LOG_INFO, "Received channel change command: switch to channel %u", inData.targetChannel);
+                setAmpChannel(inData.targetChannel);
+                setStatusLedPattern(LED_SINGLE_FLASH); // Acknowledge command received
+            } else if (inData.commandType == ALL_CHANNELS_OFF) {
+                log(LOG_INFO, "Received all channels off command");
+                setAmpChannel(0);
+                setStatusLedPattern(LED_DOUBLE_FLASH); // Different feedback for off command
+            }
             break;
 
         case PAIRING:    // we received pairing data from server
@@ -76,6 +88,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
             break;
 
         case COMMAND:
+            memcpy(&inData, incomingData, sizeof(inData));
             log(LOG_INFO, "Command received from server");
             handleCommand(inData.commandType, inData.commandValue);
             break;
@@ -99,4 +112,28 @@ void initESP_NOW(){
     esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
     
     log(LOG_DEBUG, "ESP-NOW callbacks registered");
+}
+
+// Send data/status back to server (optional - for acknowledgments or status reports)
+void sendData() {
+    if (pairingStatus != PAIR_PAIRED) {
+        log(LOG_DEBUG, "Cannot send data: not paired");
+        return;
+    }
+    
+    // Prepare outgoing message with current status
+    myData.msgType = DATA;
+    myData.id = BOARD_ID;
+    myData.commandType = STATUS_REQUEST; // Indicating this is a status response
+    myData.commandValue = currentAmpChannel;
+    myData.targetChannel = currentAmpChannel;
+    myData.readingId++;
+    myData.timestamp = millis();
+    
+    esp_err_t result = esp_now_send(serverAddress, (uint8_t *) &myData, sizeof(myData));
+    if (result == ESP_OK) {
+        log(LOG_DEBUG, "Status data sent successfully");
+    } else {
+        logf(LOG_WARN, "Error sending status data: %s", esp_err_to_name(result));
+    }
 } 

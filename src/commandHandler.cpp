@@ -380,6 +380,22 @@ void handleCommand(uint8_t commandType, uint8_t value) {
         case PROGRAM_CHANGE:
             logf(LOG_INFO, "Program change command received: %u", value);
             setAmpChannel(value);
+            setStatusLedPattern(LED_TRIPLE_FLASH);
+            break;
+        case CHANNEL_CHANGE:
+            logf(LOG_INFO, "Channel change command received: switch to channel %u", value);
+            setAmpChannel(value);
+            setStatusLedPattern(LED_SINGLE_FLASH);
+            break;
+        case ALL_CHANNELS_OFF:
+            log(LOG_INFO, "All channels off command received");
+            setAmpChannel(0);
+            setStatusLedPattern(LED_DOUBLE_FLASH);
+            break;
+        case STATUS_REQUEST:
+            logf(LOG_INFO, "Status request received - current channel: %u", currentAmpChannel);
+            // Could send back status if needed in the future
+            setStatusLedPattern(LED_SINGLE_FLASH);
             break;
         default:
             logf(LOG_WARN, "Unknown command received - Type: %u, Value: %u", commandType, value);

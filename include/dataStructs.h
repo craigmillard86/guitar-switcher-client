@@ -17,15 +17,21 @@
 #define MAX_PEER_NAME_LEN 32
 
 enum MessageType { PAIRING, DATA, COMMAND };
-enum CommandType { PROGRAM_CHANGE, CHANNEL_2_STATUS, CHANNEL_3_STATUS, CHANNEL_4_STATUS };
+enum CommandType { 
+    PROGRAM_CHANGE,     // MIDI program change - Type 0
+    CHANNEL_CHANGE,     // Direct amp channel change command - Type 1
+    ALL_CHANNELS_OFF,   // Turn all channels off - Type 2
+    STATUS_REQUEST      // Request current status - Type 3
+};
+
 typedef struct struct_message {
-    uint8_t msgType;
-    uint8_t id;
-    float temp;
-    float hum;
-    unsigned int readingId;
-    uint8_t commandType;
-    uint8_t commandValue;
+    uint8_t msgType;           // MessageType
+    uint8_t id;                // Message ID for tracking
+    uint8_t commandType;       // CommandType for command messages
+    uint8_t commandValue;      // Command parameter (channel number, etc.)
+    uint8_t targetChannel;     // Which amp channel to control (1-4, 0=all off)
+    unsigned int readingId;    // Message sequence number
+    uint32_t timestamp;        // Timestamp for message ordering
 } struct_message;
 
 typedef struct struct_pairing {
