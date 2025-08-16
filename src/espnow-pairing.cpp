@@ -104,10 +104,10 @@ PairingStatus autoPairing(){
       pairingData.macAddr[5] = clientMacAddress[5];
       strncpy(pairingData.name, deviceName, MAX_PEER_NAME_LEN);
       
-      // add peer and send request
-      addPeer(serverAddress, currentChannel);
-      esp_now_send(serverAddress, (uint8_t *) &pairingData, sizeof(pairingData));
-      log(LOG_DEBUG, "Pairing request sent");
+  // add peer and send request
+  addPeer(serverAddress, currentChannel);
+  esp_now_send(serverAddress, (uint8_t *) &pairingData, sizeof(pairingData));
+  log(LOG_DEBUG, "Pairing request sent");
       previousMillis = millis();
       pairingStatus = PAIR_REQUESTED;
       break;

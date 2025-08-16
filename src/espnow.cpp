@@ -20,6 +20,7 @@
 #include "utils.h"
 #include "espnow-pairing.h"
 #include "commandHandler.h"
+#include "dataStructs.h"
 #include <esp_now.h>
 #include <WiFi.h>
 #include <espnow-pairing.h>
@@ -48,42 +49,54 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
     
     switch (type) {
         case DATA:      // we received data from server
-            setStatusLedPattern(LED_SINGLE_FLASH);
             memcpy(&inData, incomingData, sizeof(inData));
             log(LOG_DEBUG, "Data packet received:");
-            logf(LOG_DEBUG, "  ID: %lu", inData.id);
-            logf(LOG_DEBUG, "  Temperature: %.1f", inData.temp);
-            logf(LOG_DEBUG, "  Humidity: %.1f", inData.hum);
-            logf(LOG_DEBUG, "  Reading ID: %lu", inData.readingId);
-
-            if (inData.readingId % 2 == 1) {
-                digitalWrite(LED_BUILTIN, LOW);
-            } else { 
-                digitalWrite(LED_BUILTIN, HIGH);
+            logf(LOG_DEBUG, "  ID: %u", inData.id);
+            logf(LOG_DEBUG, "  Command Type: %u", inData.commandType);
+            logf(LOG_DEBUG, "  Command Value: %u", inData.commandValue);
+            logf(LOG_DEBUG, "  Target Channel: %u", inData.targetChannel);
+            logf(LOG_DEBUG, "  Reading ID: %u", inData.readingId);
+            
+            // Process the received command
+            if (inData.commandType == RESERVED1) {
+                logf(LOG_INFO, "Received channel change command: switch to channel %u", inData.targetChannel);
+                setAmpChannel(inData.targetChannel);
+                setStatusLedPattern(LED_SINGLE_FLASH); // Acknowledge command received
+            } else if (inData.commandType == ALL_CHANNELS_OFF) {
+                log(LOG_INFO, "Received all channels off command");
+                setAmpChannel(0);
+                setStatusLedPattern(LED_DOUBLE_FLASH); // Different feedback for off command
             }
             break;
 
         case PAIRING:    // we received pairing data from server
             setStatusLedPattern(LED_SINGLE_FLASH);
             memcpy(&pairingData, incomingData, sizeof(pairingData));
-            if (pairingData.id == 0) {              // the message comes from server
-                log(LOG_INFO, "Pairing successful!");
-                log(LOG_INFO, "Server MAC Address: ");
-                printMAC(pairingData.macAddr, LOG_INFO);
-                logf(LOG_INFO, "Channel: %u", pairingData.channel);
-                
-                log(LOG_DEBUG, "Adding peer to ESP-NOW...");
-                addPeer(pairingData.macAddr, pairingData.channel); // add the server to the peer list 
-                log(LOG_DEBUG, "Peer added successfully");
-                
-                log(LOG_DEBUG, "Setting pairing status to PAIR_PAIRED");
-                pairingStatus = PAIR_PAIRED;             // set the pairing status
-                log(LOG_INFO, "Pairing process completed successfully");
+            // Complete pairing immediately while in pairing mode to avoid timeout races
+            if (pairingStatus == PAIR_PAIRED) {
+                break; // already paired
             }
+            // Validate server reply as per original protocol
+            if (pairingData.id != 0) {
+                log(LOG_WARN, "Ignoring pairing response: unexpected id (expected 0)");
+                break;
+            }
+            log(LOG_INFO, "Pairing successful!");
+            log(LOG_INFO, "Server MAC Address: ");
+            printMAC(pairingData.macAddr, LOG_INFO);
+            logf(LOG_INFO, "Channel: %u", pairingData.channel);
+
+            log(LOG_DEBUG, "Adding peer to ESP-NOW...");
+            addPeer(pairingData.macAddr, pairingData.channel); // add the server to the peer list 
+            log(LOG_DEBUG, "Peer added successfully");
+
+            log(LOG_DEBUG, "Setting pairing status to PAIR_PAIRED");
+            pairingStatus = PAIR_PAIRED;             // set the pairing status
+            log(LOG_INFO, "Pairing process completed successfully");
             break;
 
         case COMMAND:
-            setStatusLedPattern(LED_DOUBLE_FLASH);
+            memcpy(&inData, incomingData, sizeof(inData));
             log(LOG_INFO, "Command received from server");
             handleCommand(inData.commandType, inData.commandValue);
             break;
@@ -107,4 +120,28 @@ void initESP_NOW(){
     esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
     
     log(LOG_DEBUG, "ESP-NOW callbacks registered");
+}
+
+// Send data/status back to server (optional - for acknowledgments or status reports)
+void sendData() {
+    if (pairingStatus != PAIR_PAIRED) {
+        log(LOG_DEBUG, "Cannot send data: not paired");
+        return;
+    }
+    
+    // Prepare outgoing message with current status
+    myData.msgType = DATA;
+    myData.id = BOARD_ID;
+    myData.commandType = STATUS_REQUEST; // Indicating this is a status response
+    myData.commandValue = currentAmpChannel;
+    myData.targetChannel = currentAmpChannel;
+    myData.readingId++;
+    myData.timestamp = millis();
+    
+    esp_err_t result = esp_now_send(serverAddress, (uint8_t *) &myData, sizeof(myData));
+    if (result == ESP_OK) {
+        log(LOG_DEBUG, "Status data sent successfully");
+    } else {
+        logf(LOG_WARN, "Error sending status data: %s", esp_err_to_name(result));
+    }
 } 

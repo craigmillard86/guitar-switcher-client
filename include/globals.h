@@ -61,6 +61,9 @@ enum StatusLedPattern {
   LED_SINGLE_FLASH,
   LED_DOUBLE_FLASH,
   LED_TRIPLE_FLASH,
+  LED_QUAD_FLASH,
+  LED_PENTA_FLASH,
+  LED_HEXA_FLASH,
   LED_FAST_BLINK,
   LED_SOLID_ON,
   LED_FADE,
@@ -71,6 +74,9 @@ enum StatusLedPattern {
 extern volatile StatusLedPattern currentLedPattern;
 extern volatile unsigned long ledPatternStart;
 extern volatile int ledPatternStep;
+
+// LED test mode - when active, prevents data reception from overriding LED patterns
+extern unsigned long ledTestModeEnd;
 
 extern bool midiLearnArmed;
 extern int midiLearnChannel;
