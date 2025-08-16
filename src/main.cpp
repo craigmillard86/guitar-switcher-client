@@ -157,7 +157,7 @@ void initializePairing() {
     if (!loadServerFromNVS(serverAddress, &currentChannel)) {
         log(LOG_WARN, "No paired server found in NVS, starting pairing...");
         pairingStatus = PAIR_REQUEST;
-        autoPairing();
+    // Let the main loop drive autoPairing() to avoid double-invocation here
     } else {
         pairingStatus = PAIR_PAIRED;
         log(LOG_INFO, "Loaded paired server from NVS:");

@@ -18,10 +18,10 @@
 
 enum MessageType { PAIRING, DATA, COMMAND };
 enum CommandType { 
-    PROGRAM_CHANGE,     // MIDI program change - Type 0
-    CHANNEL_CHANGE,     // Direct amp channel change command - Type 1
-    ALL_CHANNELS_OFF,   // Turn all channels off - Type 2
-    STATUS_REQUEST      // Request current status - Type 3
+    PROGRAM_CHANGE = 0,     // MIDI program change - Type 0
+    RESERVED1 = 1,           // (formerly CHANNEL_CHANGE) reserved to keep enum values stable
+    ALL_CHANNELS_OFF = 2,    // Turn all channels off - Type 2
+    STATUS_REQUEST = 3       // Request current status - Type 3
 };
 
 typedef struct struct_message {

@@ -113,9 +113,9 @@ PairingStatus autoPairing(){
       break;
 
     case PAIR_REQUESTED:
-      // time out to allow receiving response from server
+      // time out to allow receiving response from server (increase to 3s)
       currentMillis = millis();
-      if(currentMillis - previousMillis > 1000) {
+      if(currentMillis - previousMillis > 3000) {
         previousMillis = currentMillis;
         // time out expired,  try next channel
         currentChannel ++;

@@ -20,6 +20,7 @@
 #include "utils.h"
 #include "espnow-pairing.h"
 #include "commandHandler.h"
+#include "dataStructs.h"
 #include <esp_now.h>
 #include <WiFi.h>
 #include <espnow-pairing.h>
@@ -57,7 +58,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
             logf(LOG_DEBUG, "  Reading ID: %u", inData.readingId);
             
             // Process the received command
-            if (inData.commandType == CHANNEL_CHANGE) {
+            if (inData.commandType == RESERVED1) {
                 logf(LOG_INFO, "Received channel change command: switch to channel %u", inData.targetChannel);
                 setAmpChannel(inData.targetChannel);
                 setStatusLedPattern(LED_SINGLE_FLASH); // Acknowledge command received

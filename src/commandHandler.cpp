@@ -377,15 +377,69 @@ void handleCommand(uint8_t commandType, uint8_t value) {
     logf(LOG_DEBUG, "Received command - Type: %u, Value: %u", commandType, value);
     
     switch (commandType) {
-        case PROGRAM_CHANGE:
-            logf(LOG_INFO, "Program change command received: %u", value);
-            setAmpChannel(value);
-            setStatusLedPattern(LED_TRIPLE_FLASH);
-            break;
-        case CHANNEL_CHANGE:
-            logf(LOG_INFO, "Channel change command received: switch to channel %u", value);
-            setAmpChannel(value);
-            setStatusLedPattern(LED_SINGLE_FLASH);
+        case PROGRAM_CHANGE: {
+            // Unified handling: interpret 'value' primarily as a MIDI Program Number.
+            // If it matches a learned mapping (midiChannelMap[channelIndex] == value), switch to that channel.
+            // Fallbacks:
+            //   value == 0            -> all channels off
+            //   1..MAX_AMPSWITCHS     -> treat as direct channel selection (legacy direct mode)
+            //   otherwise             -> ignore (no mapping)
+            uint8_t program = value;
+            bool handled = false;
+
+#if MAX_AMPSWITCHS == 1
+            // Single channel device logic
+            if (program == 0) {
+                log(LOG_INFO, "Remote: Program 0 -> all off");
+                setAmpChannel(0);
+                setStatusLedPattern(LED_DOUBLE_FLASH); // distinct off feedback
+                handled = true;
+            } else if (program == midiChannelMap[0] || program == 1) {
+                // Learned program or legacy '1' acts as TOGGLE
+                if (currentAmpChannel == 1) {
+                    logf(LOG_INFO, "Remote: Program %u -> toggle OFF", program);
+                    setAmpChannel(0);
+                    setStatusLedPattern(LED_DOUBLE_FLASH);
+                } else {
+                    logf(LOG_INFO, "Remote: Program %u -> toggle ON", program);
+                    setAmpChannel(1);
+                    setStatusLedPattern(LED_TRIPLE_FLASH);
+                }
+                handled = true;
+            }
+#else
+            // Multi-channel device: search mapping first
+            int mappedChannel = -1;
+            for (int i = 0; i < MAX_AMPSWITCHS; i++) {
+                if (midiChannelMap[i] == program) {
+                    mappedChannel = i + 1;
+                    break;
+                }
+            }
+            if (program == 0) {
+                log(LOG_INFO, "Remote: Program 0 -> all off");
+                setAmpChannel(0);
+                setStatusLedPattern(LED_DOUBLE_FLASH);
+                handled = true;
+            } else if (mappedChannel != -1) {
+                logf(LOG_INFO, "Remote: Program %u mapped -> channel %d", program, mappedChannel);
+                setAmpChannel(mappedChannel);
+                setStatusLedPattern(LED_TRIPLE_FLASH);
+                handled = true;
+            } else if (program >= 1 && program <= MAX_AMPSWITCHS) {
+                // Legacy direct mode (server sending raw channel number)
+                logf(LOG_INFO, "Remote: Direct channel select %u", program);
+                setAmpChannel(program);
+                setStatusLedPattern(LED_SINGLE_FLASH);
+                handled = true;
+            }
+#endif
+            if (!handled) {
+                logf(LOG_DEBUG, "Remote: Program %u has no mapping (ignored)", program);
+            }
+            break; }
+        case RESERVED1:
+            // Reserved / legacy - ignore silently
             break;
         case ALL_CHANNELS_OFF:
             log(LOG_INFO, "All channels off command received");
