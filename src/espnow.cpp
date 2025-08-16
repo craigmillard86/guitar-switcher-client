@@ -72,20 +72,27 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
         case PAIRING:    // we received pairing data from server
             setStatusLedPattern(LED_SINGLE_FLASH);
             memcpy(&pairingData, incomingData, sizeof(pairingData));
-            if (pairingData.id == 0) {              // the message comes from server
-                log(LOG_INFO, "Pairing successful!");
-                log(LOG_INFO, "Server MAC Address: ");
-                printMAC(pairingData.macAddr, LOG_INFO);
-                logf(LOG_INFO, "Channel: %u", pairingData.channel);
-                
-                log(LOG_DEBUG, "Adding peer to ESP-NOW...");
-                addPeer(pairingData.macAddr, pairingData.channel); // add the server to the peer list 
-                log(LOG_DEBUG, "Peer added successfully");
-                
-                log(LOG_DEBUG, "Setting pairing status to PAIR_PAIRED");
-                pairingStatus = PAIR_PAIRED;             // set the pairing status
-                log(LOG_INFO, "Pairing process completed successfully");
+            // Complete pairing immediately while in pairing mode to avoid timeout races
+            if (pairingStatus == PAIR_PAIRED) {
+                break; // already paired
             }
+            // Validate server reply as per original protocol
+            if (pairingData.id != 0) {
+                log(LOG_WARN, "Ignoring pairing response: unexpected id (expected 0)");
+                break;
+            }
+            log(LOG_INFO, "Pairing successful!");
+            log(LOG_INFO, "Server MAC Address: ");
+            printMAC(pairingData.macAddr, LOG_INFO);
+            logf(LOG_INFO, "Channel: %u", pairingData.channel);
+
+            log(LOG_DEBUG, "Adding peer to ESP-NOW...");
+            addPeer(pairingData.macAddr, pairingData.channel); // add the server to the peer list 
+            log(LOG_DEBUG, "Peer added successfully");
+
+            log(LOG_DEBUG, "Setting pairing status to PAIR_PAIRED");
+            pairingStatus = PAIR_PAIRED;             // set the pairing status
+            log(LOG_INFO, "Pairing process completed successfully");
             break;
 
         case COMMAND:

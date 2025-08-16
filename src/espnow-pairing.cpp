@@ -104,18 +104,18 @@ PairingStatus autoPairing(){
       pairingData.macAddr[5] = clientMacAddress[5];
       strncpy(pairingData.name, deviceName, MAX_PEER_NAME_LEN);
       
-      // add peer and send request
-      addPeer(serverAddress, currentChannel);
-      esp_now_send(serverAddress, (uint8_t *) &pairingData, sizeof(pairingData));
-      log(LOG_DEBUG, "Pairing request sent");
+  // add peer and send request
+  addPeer(serverAddress, currentChannel);
+  esp_now_send(serverAddress, (uint8_t *) &pairingData, sizeof(pairingData));
+  log(LOG_DEBUG, "Pairing request sent");
       previousMillis = millis();
       pairingStatus = PAIR_REQUESTED;
       break;
 
     case PAIR_REQUESTED:
-      // time out to allow receiving response from server (increase to 3s)
+      // time out to allow receiving response from server
       currentMillis = millis();
-      if(currentMillis - previousMillis > 3000) {
+      if(currentMillis - previousMillis > 1000) {
         previousMillis = currentMillis;
         // time out expired,  try next channel
         currentChannel ++;
